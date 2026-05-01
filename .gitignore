@@ -1,0 +1,99 @@
+﻿# CIRCE Intel Desk - .gitignore
+# Hierarquia: codigo e documentacao SAO versionados.
+#             Dados operacionais NUNCA sao versionados.
+# Ver 08_GUIA_USUARIO_INICIANTE.md secao 9.2.
+
+# === Dados operacionais ===
+# A pasta data/ inteira contem material sensivel: banco, casos, logs,
+# backups, imports, exports. Nada disso vai para o GitHub. Nunca.
+data/
+
+# === Ambiente virtual Python ===
+# Cada maquina cria o seu proprio com pip install -r requirements.txt.
+.venv/
+venv/
+env/
+ENV/
+
+# === Cache do Python ===
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# === Distribuicao / build ===
+build/
+dist/
+*.egg-info/
+*.egg
+.eggs/
+wheels/
+
+# === Configuracoes locais com segredos ===
+.env
+.env.local
+*.local
+
+# === Banco de dados ===
+*.db
+*.sqlite
+*.sqlite3
+
+# === Logs ===
+*.log
+logs/
+
+# === Arquivos temporarios ===
+*.tmp
+*.bak
+*.swp
+*.swo
+*~
+
+# === Editores e IDEs ===
+.vscode/
+.idea/
+*.iml
+*.suo
+*.user
+
+# === Sistema operacional ===
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# === Testes ===
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# === Type checking ===
+.mypy_cache/
+.dmypy.json
+.pyre/
+
+# === Alembic - banco em si nao vai (regra acima), migracoes SIM ===
+# (Sem entrada aqui - app/database/migrations/ deve ser versionado.)
+
+# === Embeddings, modelos de IA, capturas (Sprints futuras) ===
+# Reforco: ja estao cobertos por data/, mas listamos por clareza.
+*.embedding
+*.faiss
+models/
