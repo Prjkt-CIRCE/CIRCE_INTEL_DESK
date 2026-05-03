@@ -1,0 +1,241 @@
+/* ============================================================
+   CIRCE Intel Desk — Layout
+   Shell da aplicação: header, command bar, área de conteúdo, status bar.
+   Depende de tokens.css e base.css (carregados antes deste arquivo).
+   ============================================================ */
+
+/* ============================================================
+   Estrutura geral — grid vertical de altura total da viewport.
+   Header fixo no topo, status bar fixa na base, conteúdo central
+   ocupa o restante e rola verticalmente quando necessário.
+   ============================================================ */
+
+.app-shell {
+  display: grid;
+  grid-template-rows:
+    var(--header-height)
+    var(--command-bar-height)
+    1fr
+    var(--status-bar-height);
+  height: 100vh;
+  width: 100%;
+}
+
+/* ============================================================
+   Header — identificador do sistema, navegação, identidade do operador.
+   ============================================================ */
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 var(--space-5);
+  background-color: var(--bg-base);
+  border-bottom: var(--border-width-base) solid var(--border-subtle);
+  z-index: var(--z-header);
+}
+
+.app-header__brand {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.app-header__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  flex: 1;
+  justify-content: center;
+}
+
+.app-header__nav-item {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--space-2) var(--space-1);
+  border-bottom: var(--border-width-strong) solid transparent;
+  transition: color var(--transition-fast),
+              border-color var(--transition-fast);
+  cursor: pointer;
+}
+
+.app-header__nav-item:hover {
+  color: var(--text-primary);
+}
+
+.app-header__nav-item--active {
+  color: var(--text-primary);
+  border-bottom-color: var(--accent);
+}
+
+.app-header__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.app-header__meta-item {
+  white-space: nowrap;
+}
+
+.app-header__meta-item--accent {
+  color: var(--accent);
+}
+
+/* ============================================================
+   Command bar — caixa de busca / atalho Ctrl+K.
+   No Bloco 6 vira disparador do command palette.
+   Por enquanto é apenas placeholder visual.
+   ============================================================ */
+
+.app-command-bar {
+  display: flex;
+  align-items: center;
+  height: var(--command-bar-height);
+  padding: 0 var(--space-5);
+  background-color: var(--bg-elevated);
+  border-bottom: var(--border-width-base) solid var(--border-subtle);
+}
+
+.app-command-bar__prompt {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  color: var(--text-tertiary);
+  margin-right: var(--space-2);
+  user-select: none;
+}
+
+.app-command-bar__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  padding: var(--space-2) 0;
+}
+
+.app-command-bar__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.app-command-bar__hint {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width-thin) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-left: var(--space-3);
+  user-select: none;
+}
+
+/* ============================================================
+   Área de conteúdo — onde as páginas renderizam.
+   Rola verticalmente quando o conteúdo excede a altura disponível.
+   ============================================================ */
+
+.app-content {
+  overflow-y: auto;
+  padding: var(--space-5);
+  background-color: var(--bg-base);
+}
+
+.app-content__page {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.app-content__page-header {
+  margin-bottom: var(--space-5);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width-thin) solid var(--border-subtle);
+}
+
+.app-content__page-title {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.app-content__page-subtitle {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+}
+
+.app-content__placeholder-message {
+  margin-top: var(--space-6);
+  padding: var(--space-5);
+  background-color: var(--bg-elevated);
+  border: var(--border-width-thin) dashed var(--border-subtle);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* ============================================================
+   Status bar — fixa na base, persistente em todas as páginas.
+   Indicadores: relógio, criptografia, operador, workspace.
+   ============================================================ */
+
+.app-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--status-bar-height);
+  padding: 0 var(--space-5);
+  background-color: var(--bg-elevated);
+  border-top: var(--border-width-base) solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  z-index: var(--z-status-bar);
+}
+
+.app-status-bar__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.app-status-bar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.app-status-bar__item-label {
+  color: var(--text-tertiary);
+}
+
+.app-status-bar__item-value {
+  color: var(--text-secondary);
+}
+
+/* Separador vertical entre grupos da status bar. */
+.app-status-bar__separator {
+  width: var(--border-width-base);
+  height: var(--space-3);
+  background-color: var(--border-subtle);
+}

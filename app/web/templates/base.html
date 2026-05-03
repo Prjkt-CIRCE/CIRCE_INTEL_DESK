@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+{# ============================================================
+   Template base — CIRCE Intel Desk
+   ============================================================ #}
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <title>{% block title %}{{ page_title|default('CIRCE Intel Desk') }}{% endblock %}</title>
+
+  <link rel="preload" href="/static/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/static/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
+
+  <link rel="stylesheet" href="/static/css/tokens.css" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/components.css" />
+  <link rel="stylesheet" href="/static/css/layout.css" />
+
+  <link rel="icon" href="data:," />
+
+  {# theme.js e accent.js rodam síncronos no <head> para evitar FOUC. #}
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/accent.js"></script>
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body data-workspace="{{ workspace_id|default('default') }}">
+
+  <div class="app-shell">
+
+    {% include "_header.html" %}
+
+    <div class="app-command-bar">
+      <span class="app-command-bar__prompt">&gt;</span>
+      <input
+        type="text"
+        class="app-command-bar__input"
+        placeholder="Digite um comando ou pesquise (Ctrl+K)"
+        aria-label="Barra de comando"
+        readonly
+        onclick="window.CIRCE && window.CIRCE.palette && window.CIRCE.palette.open()"
+      />
+      <span class="app-command-bar__hint">Ctrl+K</span>
+    </div>
+
+    <main class="app-content" role="main">
+      <div class="app-content__page">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+
+    {% include "_status_bar.html" %}
+
+  </div>
+
+  {% include "_first_run.html" %}
+  {% include "_command_palette.html" %}
+  {% include "_shortcuts_modal.html" %}
+
+  <script src="/static/js/status_bar.js" defer></script>
+  <script src="/static/js/header_toggles.js" defer></script>
+  <script src="/static/js/first_run.js" defer></script>
+  <script src="/static/js/command_palette.js" defer></script>
+  <script src="/static/js/shortcuts.js" defer></script>
+
+  {% block extra_body %}{% endblock %}
+
+</body>
+</html>

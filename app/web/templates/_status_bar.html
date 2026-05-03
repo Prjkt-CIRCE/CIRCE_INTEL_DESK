@@ -1,0 +1,39 @@
+{# ============================================================
+   Status bar partial — CIRCE Intel Desk
+   Persistente em todas as páginas. Placeholders na 0.5.
+
+   Variáveis esperadas no contexto:
+     - workspace_id: str — identificador do workspace ativo.
+                           Default: 'default'. Preparação ADR-010.
+   ============================================================ #}
+
+<footer class="app-status-bar" role="status">
+
+  <div class="app-status-bar__group">
+    <div class="app-status-bar__item">
+      <span class="app-status-bar__item-label">WS:</span>
+      <span class="app-status-bar__item-value" data-status-workspace>{{ workspace_id }}</span>
+    </div>
+    <div class="app-status-bar__separator"></div>
+    <div class="app-status-bar__item">
+      <span class="app-status-bar__item-label">OP:</span>
+      <span class="app-status-bar__item-value">—</span>
+    </div>
+  </div>
+
+  <div class="app-status-bar__group">
+    <div class="app-status-bar__item">
+      <span class="app-status-bar__item-label">[CRYPT]</span>
+    </div>
+    <div class="app-status-bar__separator"></div>
+    <div class="app-status-bar__item">
+      <span class="app-status-bar__item-label">SRV:</span>
+      <span class="app-status-bar__item-value">127.0.0.1:8765</span>
+    </div>
+    <div class="app-status-bar__separator"></div>
+    <div class="app-status-bar__item">
+      <span class="app-status-bar__item-value" data-status-clock>--:--:--</span>
+    </div>
+  </div>
+
+</footer>

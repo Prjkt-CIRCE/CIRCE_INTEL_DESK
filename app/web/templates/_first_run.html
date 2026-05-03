@@ -1,0 +1,69 @@
+{# ============================================================
+   First Run partial — CIRCE Intel Desk
+   Modal de boas-vindas exibido quando o operador ainda não
+   escolheu tema nem accent (primeira execução).
+
+   Lógica de exibição: first_run.js verifica localStorage e abre
+   o modal se não houver preferência registrada. Após escolha,
+   o modal fecha e nunca mais reaparece (até o operador limpar
+   o localStorage manualmente).
+   ============================================================ #}
+
+<div class="modal-backdrop" id="first-run-modal" data-open="false" role="dialog" aria-modal="true" aria-labelledby="first-run-title">
+  <div class="modal">
+
+    <div class="modal__header">
+      <div class="modal__title" id="first-run-title">CIRCE // Configuração inicial</div>
+      <div class="modal__subtitle">Defina tema e cor de destaque. Você pode alterar a qualquer momento.</div>
+    </div>
+
+    <div class="modal__section">
+      <span class="modal__section-label">Tema</span>
+      <div class="choice-grid choice-grid--themes" data-choice-group="theme">
+        <button type="button" class="choice-card" data-value="dark" data-selected="false">
+          <span class="choice-card__swatch" style="background:#1A1A17;border-color:#34332F;"></span>
+          <span class="choice-card__label">Escuro · CRT</span>
+        </button>
+        <button type="button" class="choice-card" data-value="light" data-selected="false">
+          <span class="choice-card__swatch" style="background:#F5F2E9;border-color:#C9C5B5;"></span>
+          <span class="choice-card__label">Claro · Papel</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="modal__section">
+      <span class="modal__section-label">Cor de destaque</span>
+      <div class="choice-grid choice-grid--accents" data-choice-group="accent">
+        <button type="button" class="choice-card" data-value="amber" data-selected="false">
+          <span class="choice-card__swatch" style="background:#E8B559;"></span>
+          <span class="choice-card__label">Âmbar CRT</span>
+        </button>
+        <button type="button" class="choice-card" data-value="green" data-selected="false">
+          <span class="choice-card__swatch" style="background:#74C475;"></span>
+          <span class="choice-card__label">Verde-fósforo</span>
+        </button>
+        <button type="button" class="choice-card" data-value="blue" data-selected="false">
+          <span class="choice-card__swatch" style="background:#5FB3CF;"></span>
+          <span class="choice-card__label">Azul-petróleo</span>
+        </button>
+        <button type="button" class="choice-card" data-value="bone" data-selected="false">
+          <span class="choice-card__swatch" style="background:#D4D2CC;"></span>
+          <span class="choice-card__label">Branco-osso</span>
+        </button>
+        <button type="button" class="choice-card" data-value="bordeaux" data-selected="false">
+          <span class="choice-card__swatch" style="background:#D88078;"></span>
+          <span class="choice-card__label">Bordô</span>
+        </button>
+        <button type="button" class="choice-card" data-value="amethyst" data-selected="false">
+          <span class="choice-card__swatch" style="background:#B594D4;"></span>
+          <span class="choice-card__label">Ametista</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="modal__footer">
+      <button type="button" class="btn btn--primary" data-first-run-confirm>Confirmar</button>
+    </div>
+
+  </div>
+</div>

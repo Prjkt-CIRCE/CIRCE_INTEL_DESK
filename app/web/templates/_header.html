@@ -1,0 +1,33 @@
+{# ============================================================
+   Header partial — CIRCE Intel Desk
+   Identificador, navegação principal, identidade do operador,
+   toggle de tema (Bloco 3).
+
+   Variáveis esperadas no contexto:
+     - active_page: str — id da página ativa para destacar item do menu.
+   ============================================================ #}
+
+<header class="app-header" role="banner">
+
+  <div class="app-header__brand">CIRCE // INTEL DESK</div>
+
+  <nav class="app-header__nav" aria-label="Navegação principal">
+    <a class="app-header__nav-item {% if active_page == 'cases' %}app-header__nav-item--active{% endif %}"
+       href="/cases">Casos</a>
+    <a class="app-header__nav-item {% if active_page == 'persons' %}app-header__nav-item--active{% endif %}"
+       href="/persons">Pessoas</a>
+    <a class="app-header__nav-item {% if active_page == 'organizations' %}app-header__nav-item--active{% endif %}"
+       href="/organizations">Organizações</a>
+    <a class="app-header__nav-item {% if active_page == 'documents' %}app-header__nav-item--active{% endif %}"
+       href="/documents">Documentos</a>
+    <a class="app-header__nav-item {% if active_page == 'reports' %}app-header__nav-item--active{% endif %}"
+       href="/reports">Relatórios</a>
+  </nav>
+
+  <div class="app-header__meta">
+    <span class="app-header__meta-item">OP: —</span>
+    <span class="app-header__meta-item app-header__meta-item--accent">[CRYPT]</span>
+    <button type="button" class="btn-toggle" data-toggle-theme aria-label="Alternar tema">☾</button>
+  </div>
+
+</header>

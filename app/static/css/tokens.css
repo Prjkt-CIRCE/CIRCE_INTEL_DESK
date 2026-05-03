@@ -1,0 +1,209 @@
+/* ============================================================
+   CIRCE Intel Desk — Design Tokens
+   Centraliza todas as variáveis visuais do sistema.
+   Referência: 09_DESIGN_SYSTEM.md
+   ============================================================ */
+
+/* ============================================================
+   Tema escuro (CRT calibrado) — DEFAULT
+   Aplicado quando <html data-theme="dark"> ou ausência do atributo.
+   ============================================================ */
+:root,
+[data-theme="dark"] {
+  /* --- Superfícies ------------------------------------------ */
+  --bg-base:        #1A1A17;   /* fundo principal — preto-fósforo */
+  --bg-elevated:    #232320;   /* cards, painéis, header */
+  --bg-hover:       #2C2C28;   /* hover de linha de tabela */
+
+  /* --- Bordas ----------------------------------------------- */
+  --border-strong:  #4A4944;
+  --border-subtle:  #34332F;
+
+  /* --- Texto ------------------------------------------------ */
+  --text-primary:   #E8E5DA;   /* tinta-fósforo, não branco puro */
+  --text-secondary: #B5B2A6;
+  --text-tertiary:  #84827A;
+  --text-disabled:  #5A5953;
+
+  /* --- Painel inativo (reservado p/ ADR-009 — workbench) ---- */
+  /* Usado no Sprint 03–05 para painéis de workbench fora de foco
+     e em outros contextos de foco visual (modal aberto, drawer). */
+  --panel-inactive-bg:     #1F1F1C;
+  --panel-inactive-text:   #84827A;
+  --panel-inactive-border: #2C2C28;
+}
+
+/* ============================================================
+   Tema claro (papel-arquivo)
+   Aplicado quando <html data-theme="light">.
+   ============================================================ */
+[data-theme="light"] {
+  /* --- Superfícies ------------------------------------------ */
+  --bg-base:        #F5F2E9;   /* bege-creme, não branco puro */
+  --bg-elevated:    #FAF8F1;
+  --bg-hover:       #EDE9DC;
+
+  /* --- Bordas ----------------------------------------------- */
+  --border-strong:  #9C9A8E;
+  --border-subtle:  #C9C5B5;
+
+  /* --- Texto ------------------------------------------------ */
+  --text-primary:   #1F1E18;   /* cinza-tinta, não preto puro */
+  --text-secondary: #52514A;
+  --text-tertiary:  #84827A;
+  --text-disabled:  #B5B3A8;
+
+  /* --- Painel inativo (reservado p/ ADR-009 — workbench) ---- */
+  --panel-inactive-bg:     #EDE9DC;
+  --panel-inactive-text:   #84827A;
+  --panel-inactive-border: #C9C5B5;
+}
+
+/* ============================================================
+   Cor de destaque (accent) — configurável pelo operador
+   Default: Âmbar CRT no escuro / Âmbar suave no claro.
+   accent.js (Bloco 3) sobrescreve --accent dinamicamente.
+   ============================================================ */
+:root,
+[data-theme="dark"] {
+  --accent:        #E8B559;   /* âmbar CRT */
+  --accent-soft:   #4A3A1F;   /* fundo atenuado para badges */
+  --accent-strong: #F5C870;   /* foco, destaque saturado */
+}
+
+[data-theme="light"] {
+  --accent:        #A87317;
+  --accent-soft:   #E8DCC0;
+  --accent-strong: #8E5F0E;
+}
+
+/* ============================================================
+   Cores semânticas de estado
+   Constantes em significado entre temas, calibradas em luminosidade.
+   ============================================================ */
+:root,
+[data-theme="dark"] {
+  --success:        #7CB87C;
+  --success-soft:   #2A3F2A;
+  --warning:        #D9B25A;
+  --warning-soft:   #3F341A;
+  --error:          #D27773;
+  --error-soft:     #3F2826;
+  --info:           #7AAFC9;
+  --info-soft:      #1F3340;
+  --inactive:       #6B6A66;
+  --inactive-soft:  #2C2C28;
+}
+
+[data-theme="light"] {
+  --success:        #3D7A3D;
+  --success-soft:   #D8E8D8;
+  --warning:        #8E6312;
+  --warning-soft:   #F0E2C0;
+  --error:          #A03028;
+  --error-soft:     #F0D8D5;
+  --info:           #1F5E78;
+  --info-soft:      #D0E4EE;
+  --inactive:       #84827A;
+  --inactive-soft:  #DEDACE;
+}
+
+/* ============================================================
+   Tipografia — famílias
+   Carregadas localmente em base.css via @font-face.
+   ============================================================ */
+:root {
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Consolas", "Courier New", monospace;
+}
+
+/* ============================================================
+   Tipografia — escala
+   ============================================================ */
+:root {
+  --font-size-xs:   11px;   /* metadados, timestamps, badges */
+  --font-size-sm:   12px;   /* texto secundário */
+  --font-size-base: 14px;   /* texto principal, tabelas */
+  --font-size-md:   15px;   /* prosa longa */
+  --font-size-lg:   18px;   /* títulos de página */
+  --font-size-xl:   22px;   /* cabeçalhos principais */
+  --font-size-xxl:  28px;   /* identificador do sistema */
+}
+
+/* ============================================================
+   Tipografia — pesos
+   ============================================================ */
+:root {
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+}
+
+/* ============================================================
+   Tipografia — alturas de linha
+   ============================================================ */
+:root {
+  --line-height-tight: 1.2;   /* cabeçalhos */
+  --line-height-dense: 1.35;  /* tabelas, listas */
+  --line-height-base:  1.5;   /* texto corrido */
+}
+
+/* ============================================================
+   Espaçamento
+   ============================================================ */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+}
+
+/* ============================================================
+   Geometria — bordas e raios
+   ============================================================ */
+:root {
+  --border-width-thin:   0.5px;
+  --border-width-base:   1px;
+  --border-width-strong: 2px;
+
+  --radius-none: 0;
+  --radius-sm:   2px;
+  --radius-md:   4px;     /* padrão da maioria dos componentes */
+  --radius-lg:   6px;     /* cards e painéis */
+  --radius-pill: 999px;   /* badges arredondados, raros */
+}
+
+/* ============================================================
+   Animação
+   Filosofia: animação serve à compreensão, nunca ao espetáculo.
+   ============================================================ */
+:root {
+  --transition-fast: 120ms ease-out;
+  --transition-mid:  200ms ease-out;
+}
+
+/* ============================================================
+   Z-index — camadas
+   ============================================================ */
+:root {
+  --z-base:           1;
+  --z-status-bar:     10;
+  --z-header:         20;
+  --z-dropdown:       100;
+  --z-modal-backdrop: 900;
+  --z-modal:          1000;
+  --z-toast:          1100;
+}
+
+/* ============================================================
+   Layout — alturas fixas dos elementos do shell
+   ============================================================ */
+:root {
+  --header-height:     48px;
+  --command-bar-height: 44px;
+  --status-bar-height: 36px;
+}

@@ -1,0 +1,787 @@
+/* ============================================================
+   CIRCE Intel Desk — Components
+   Catálogo completo de componentes base.
+   Referência: 09_DESIGN_SYSTEM.md seção 8.
+
+   Ordem deste arquivo:
+     1. Botões (3 variantes + toggle)
+     2. Inputs (text, search, mono)
+     3. Cards e painéis
+     4. Tabela
+     5. Badges (8 canônicos)
+     6. Toasts
+     7. Modal (base, expandida do Bloco 3)
+     8. Choice grid (preservado do Bloco 3)
+   ============================================================ */
+
+/* ============================================================
+   1. Botões
+   ============================================================ */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  letter-spacing: 0.05em;
+  background: transparent;
+  color: var(--text-primary);
+  border: var(--border-width-base) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color var(--transition-fast),
+              border-color var(--transition-fast),
+              color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn:hover {
+  background-color: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  color: var(--text-disabled);
+  border-color: var(--border-subtle);
+  cursor: not-allowed;
+  background: transparent;
+}
+
+.btn--primary {
+  background-color: var(--accent);
+  color: var(--bg-base);
+  border-color: var(--accent);
+}
+
+.btn--primary:hover {
+  background-color: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--bg-base);
+}
+
+.btn--ghost {
+  border: none;
+  color: var(--text-secondary);
+}
+
+.btn--ghost:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.btn--text {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  padding: var(--space-1) var(--space-2);
+}
+
+.btn--text:hover {
+  color: var(--accent-strong);
+  background: transparent;
+  text-decoration: underline;
+}
+
+.btn--small {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+}
+
+.btn--block {
+  width: 100%;
+}
+
+/* Botão de toggle compacto — usado no header. */
+.btn-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: var(--border-width-base) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: color var(--transition-fast),
+              border-color var(--transition-fast);
+}
+
+.btn-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ============================================================
+   2. Inputs
+   ============================================================ */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.field__label {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.field__label--required::after {
+  content: " *";
+  color: var(--error);
+}
+
+.field__hint {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+}
+
+.field__error {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--error);
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  border: var(--border-width-base) solid var(--border-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  transition: border-color var(--transition-fast);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent-strong);
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.input:disabled {
+  color: var(--text-disabled);
+  background-color: var(--bg-elevated);
+  cursor: not-allowed;
+}
+
+.input--mono {
+  font-family: var(--font-mono);
+}
+
+.input--error {
+  border-color: var(--error);
+}
+
+textarea.input {
+  resize: vertical;
+  min-height: 80px;
+  line-height: var(--line-height-base);
+}
+
+/* ============================================================
+   3. Cards e painéis
+   ============================================================ */
+
+.card {
+  background-color: var(--bg-elevated);
+  border: var(--border-width-base) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.card--compact {
+  padding: var(--space-3);
+}
+
+.card__header {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width-thin) solid var(--border-subtle);
+}
+
+.card__title {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-primary);
+}
+
+.card__subtitle {
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+}
+
+.card__body {
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+}
+
+.card__footer {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: var(--border-width-thin) solid var(--border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* ============================================================
+   4. Tabela
+   ============================================================ */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-base);
+}
+
+.table thead th {
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  background-color: var(--bg-elevated);
+  border-bottom: var(--border-width-base) solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-primary);
+  border-bottom: var(--border-width-thin) solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background-color: var(--bg-hover);
+}
+
+.table tbody tr[data-selected="true"] {
+  background-color: var(--accent-soft);
+  border-left: var(--border-width-strong) solid var(--accent);
+}
+
+.table--zebra tbody tr:nth-child(even) {
+  background-color: var(--bg-elevated);
+}
+
+.table--zebra tbody tr:nth-child(even):hover {
+  background-color: var(--bg-hover);
+}
+
+/* Coluna mono — para códigos, IDs, hashes, datas. */
+.table .col-mono {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   5. Badges (8 canônicos do design system seção 8.5)
+   ============================================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  border: var(--border-width-thin) solid transparent;
+}
+
+.badge--ativo,
+.badge--validado {
+  background-color: var(--success-soft);
+  color: var(--success);
+}
+
+.badge--pendente {
+  background-color: var(--warning-soft);
+  color: var(--warning);
+}
+
+.badge--corrigido {
+  background-color: var(--info-soft);
+  color: var(--info);
+}
+
+.badge--rejeitado,
+.badge--alerta {
+  background-color: var(--error-soft);
+  color: var(--error);
+}
+
+.badge--arquivado {
+  background-color: var(--inactive-soft);
+  color: var(--inactive);
+}
+
+/* ============================================================
+   6. Toasts
+   ============================================================ */
+
+.toast-container {
+  position: fixed;
+  bottom: calc(var(--status-bar-height) + var(--space-3));
+  right: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: var(--z-toast);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-width: 280px;
+  max-width: 380px;
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--bg-elevated);
+  border: var(--border-width-base) solid var(--border-subtle);
+  border-left-width: var(--border-width-strong);
+  border-radius: var(--radius-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  pointer-events: auto;
+  animation: toast-in var(--transition-mid);
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.toast--success { border-left-color: var(--success); }
+.toast--warning { border-left-color: var(--warning); }
+.toast--error   { border-left-color: var(--error); }
+.toast--info    { border-left-color: var(--info); }
+
+.toast__title {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-1);
+}
+
+.toast__body {
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   7. Modal — base + variações
+   ============================================================ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.55);
+  z-index: var(--z-modal-backdrop);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  animation: modal-backdrop-in var(--transition-fast);
+}
+
+[data-theme="light"] .modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.25);
+}
+
+.modal-backdrop[data-open="true"] {
+  display: flex;
+}
+
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal {
+  background-color: var(--bg-elevated);
+  border: var(--border-width-base) solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  min-width: 480px;
+  max-width: 560px;
+  z-index: var(--z-modal);
+}
+
+.modal__header {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-width-thin) solid var(--border-subtle);
+}
+
+.modal__title {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-primary);
+}
+
+.modal__subtitle {
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+}
+
+.modal__section {
+  margin-bottom: var(--space-4);
+}
+
+.modal__section-label {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-secondary);
+}
+
+.modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--border-width-thin) solid var(--border-subtle);
+}
+
+/* ============================================================
+   8. Choice grid (preservado do Bloco 3 — usado pelo first run)
+   ============================================================ */
+
+.choice-grid {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.choice-grid--themes {
+  grid-template-columns: 1fr 1fr;
+}
+
+.choice-grid--accents {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.choice-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background-color: var(--bg-base);
+  border: var(--border-width-base) solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: border-color var(--transition-fast),
+              background-color var(--transition-fast);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.choice-card:hover {
+  border-color: var(--text-tertiary);
+  color: var(--text-primary);
+}
+
+.choice-card[data-selected="true"] {
+  border-color: var(--accent);
+  background-color: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+.choice-card__swatch {
+  width: 100%;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  border: var(--border-width-thin) solid var(--border-subtle);
+}
+
+.choice-card__label {
+  font-weight: var(--font-weight-medium);
+}
+
+/* ============================================================
+   Showcase — utilitários só para a página /dev/components.
+   Sem efeito em qualquer outra página.
+   ============================================================ */
+
+.showcase-section {
+  margin-bottom: var(--space-7);
+}
+
+.showcase-section__title {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: var(--border-width-thin) solid var(--border-subtle);
+}
+
+.showcase-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.showcase-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  margin-bottom: var(--space-3);
+}
+/* ============================================================
+   9. Command palette
+   Modal central de comando, ativado por Ctrl+K.
+   ============================================================ */
+
+.modal-backdrop--palette {
+  /* Palette ancora no terço superior, não no centro perfeito. */
+  align-items: flex-start;
+  padding-top: 12vh;
+}
+
+.palette {
+  width: 640px;
+  max-width: calc(100vw - var(--space-7));
+  background-color: var(--bg-elevated);
+  border: var(--border-width-base) solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: var(--z-modal);
+  overflow: hidden;
+  animation: palette-in var(--transition-fast);
+}
+
+[data-theme="light"] .palette {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes palette-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.palette__input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width-base) solid var(--border-subtle);
+}
+
+.palette__prompt {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  color: var(--accent);
+  user-select: none;
+}
+
+.palette__input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+  padding: var(--space-1) 0;
+}
+
+.palette__input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.palette__hint {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width-thin) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  user-select: none;
+}
+
+.palette__results {
+  max-height: 50vh;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.palette__group {
+  padding: var(--space-2) var(--space-4) var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-tertiary);
+  border-top: var(--border-width-thin) solid var(--border-subtle);
+}
+
+.palette__group:first-child {
+  border-top: none;
+}
+
+.palette__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  border-left: var(--border-width-strong) solid transparent;
+  transition: background-color var(--transition-fast),
+              border-left-color var(--transition-fast);
+}
+
+.palette__item:hover,
+.palette__item[data-active="true"] {
+  background-color: var(--bg-hover);
+  border-left-color: var(--accent);
+}
+
+.palette__item-label {
+  flex: 1;
+}
+
+.palette__item-hint {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  padding: 2px var(--space-2);
+  border: var(--border-width-thin) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-left: var(--space-3);
+}
+
+.palette__empty {
+  padding: var(--space-4);
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-tertiary);
+}
+
+/* ============================================================
+   10. Modal de atalhos (Ctrl+/)
+   ============================================================ */
+
+.modal--shortcuts {
+  min-width: 560px;
+  max-width: 640px;
+}
+
+.shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.shortcuts-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width-thin) solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.shortcuts-table tr:last-child td {
+  border-bottom: none;
+}
+
+.shortcuts-table__key {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  width: 1%;
+}
+
+.shortcuts-table__desc {
+  color: var(--text-primary);
+}
+
+.shortcuts-table__avail {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--success);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.shortcuts-table__avail--pending {
+  color: var(--warning);
+}
+
+kbd {
+  display: inline-block;
+  padding: 1px var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background-color: var(--bg-base);
+  color: var(--text-secondary);
+  border: var(--border-width-thin) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  min-width: 16px;
+  text-align: center;
+}
