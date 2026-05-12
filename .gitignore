@@ -96,4 +96,7 @@ htmlcov/
 # Reforco: ja estao cobertos por data/, mas listamos por clareza.
 *.embedding
 *.faiss
-models/
+# Pastas de modelos de IA/ML em raízes esperadas (Sprints 04, 05, 08).
+# NÃO usar `models/` puro: colide com app/models/ (ORM SQLAlchemy).
+/models/
+data/models/
