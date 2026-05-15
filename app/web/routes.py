@@ -8,15 +8,24 @@ por caso ativo, status: Proposed em 2026-05-03), de forma
 que a promoção da ADR para Accepted nas sprints 03–05 não
 exija refatoração da camada de roteamento.
 
+Exceção a esse padrão: as rotas de autenticação (GET /setup e
+GET /login), adicionadas no Sprint 01 / Bloco 5.6. Workspace é
+um conceito que só existe DEPOIS de autenticado — essas telas
+são o portão, não um cômodo. Decisão consciente do operador.
+
 Páginas placeholder de domínio (Casos, Pessoas, Organizações,
 Documentos, Relatórios) são apenas casca — implementação real
 de cada uma entra na sprint correspondente do roadmap.
 """
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, Depends, Request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
 
 from pathlib import Path
+
+from app.api.auth import _operator_exists
+from app.database.session import get_session
 
 # Diretório de templates relativo a este arquivo:
 # app/web/routes.py -> app/web/templates/
@@ -57,8 +66,9 @@ async def home(request: Request, workspace_id: str = "default") -> HTMLResponse:
     Página raiz do shell.
 
     Na Sprint 0.5 mostra apenas a casca do design system.
-    A partir da Sprint 01 redireciona para a tela de login (RF-021)
-    ou para a primeira execução.
+    A proteção por autenticação (redirecionar não-autenticado para
+    /login ou /setup) é feita pelo middleware do Bloco 5.8 — esta
+    função não precisa ser alterada para isso.
     """
     return templates.TemplateResponse(
         request=request,
@@ -67,6 +77,61 @@ async def home(request: Request, workspace_id: str = "default") -> HTMLResponse:
             "workspace_id": workspace_id,
             "active_page": None,
             "page_title": "CIRCE Intel Desk",
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Rotas de autenticação (HTML) — RF-021, Sprint 01 / Bloco 5.6.
+# Fora do padrão workspace_id por decisão consciente (ver docstring
+# do módulo). O processamento dos formulários (POST) está em
+# app/api/auth.py — estas rotas apenas SERVEM as páginas.
+# ---------------------------------------------------------------------------
+@router.get("/setup", response_class=HTMLResponse)
+async def setup_page(
+    request: Request,
+    db: Session = Depends(get_session),
+):
+    """
+    Tela de cadastro do operador inicial (CA-021.1).
+
+    Só existe na primeira execução: se já há ao menos um operador
+    cadastrado, esta rota redireciona para /login — a tela de setup
+    deixa de existir funcionalmente.
+    """
+    if _operator_exists(db):
+        return RedirectResponse(url="/login", status_code=303)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="auth/setup.html",
+        context={
+            "active_page": None,
+            "page_title": "CIRCE // Cadastro Inicial",
+        },
+    )
+
+
+@router.get("/login", response_class=HTMLResponse)
+async def login_page(
+    request: Request,
+    error: str | None = None,
+) -> HTMLResponse:
+    """
+    Tela de login.
+
+    Aceita ?error=1 na query string. Quando presente, o template
+    exibe a mensagem genérica de falha de autenticação (CA-021.4).
+    A rota não conhece a mensagem em si — só sinaliza ao template
+    se deve ou não exibi-la.
+    """
+    return templates.TemplateResponse(
+        request=request,
+        name="auth/login.html",
+        context={
+            "active_page": None,
+            "page_title": "CIRCE // Acesso",
+            "show_error": error is not None,
         },
     )
 

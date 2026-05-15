@@ -1,0 +1,130 @@
+{# ============================================================
+   Tela de cadastro do operador inicial — CIRCE Intel Desk
+   RF-021 / CA-021.1 / CA-021.2 / CA-021.3
+   Sprint 01 / Bloco 5.7
+
+   Só é renderizada na primeira execução. A rota GET /setup
+   redireciona para /login se já existe operador (Bloco 5.6).
+
+   Form HTML clássico — POST para /setup, processado em
+   app/api/auth.py. Sem JavaScript.
+   ============================================================ #}
+{% extends "auth/auth_base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="modal__header">
+  <div class="modal__title">CIRCE // Cadastro inicial</div>
+  <div class="modal__subtitle">
+    Primeira execução do sistema. Cadastre o operador inicial.
+    Estas credenciais protegem o acesso a este dispositivo.
+  </div>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="modal__section" style="color: var(--error);">
+  Não foi possível concluir o cadastro. Verifique os campos —
+  a senha deve ter no mínimo 12 caracteres.
+</div>
+{% endif %}
+
+<form method="post" action="/setup" novalidate>
+  <div class="modal__section">
+    <label for="username" class="modal__section-label">Usuário</label>
+    <input
+      type="text"
+      id="username"
+      name="username"
+      autocomplete="username"
+      autofocus
+      required
+      minlength="3"
+      maxlength="64"
+      style="
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--bg-base);
+        border: var(--border-width-base) solid var(--border-strong);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: var(--font-size-base);
+      "
+    />
+  </div>
+
+  <div class="modal__section">
+    <label for="display_name" class="modal__section-label">Nome de exibição</label>
+    <input
+      type="text"
+      id="display_name"
+      name="display_name"
+      autocomplete="name"
+      required
+      minlength="1"
+      maxlength="120"
+      style="
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--bg-base);
+        border: var(--border-width-base) solid var(--border-strong);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: var(--font-size-base);
+      "
+    />
+  </div>
+
+  <div class="modal__section">
+    <label for="password" class="modal__section-label">
+      Senha <span style="color: var(--text-tertiary);">— mínimo 12 caracteres</span>
+    </label>
+    <input
+      type="password"
+      id="password"
+      name="password"
+      autocomplete="new-password"
+      required
+      minlength="12"
+      style="
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--bg-base);
+        border: var(--border-width-base) solid var(--border-strong);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: var(--font-size-base);
+      "
+    />
+  </div>
+
+  <div class="modal__section">
+    <label for="area_atuacao" class="modal__section-label">
+      Área de atuação <span style="color: var(--text-tertiary);">— opcional</span>
+    </label>
+    <input
+      type="text"
+      id="area_atuacao"
+      name="area_atuacao"
+      maxlength="120"
+      style="
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--bg-base);
+        border: var(--border-width-base) solid var(--border-strong);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-family: var(--font-sans);
+        font-size: var(--font-size-base);
+      "
+    />
+  </div>
+
+  <div class="modal__footer">
+    <button type="submit" class="btn btn--primary">Cadastrar operador</button>
+  </div>
+</form>
+{% endblock %}

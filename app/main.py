@@ -5,23 +5,22 @@ Sprint 0.5: shell visual (rota raiz / passa a renderizar o shell HTML;
             JSON de informação do sistema migra para /api/info).
 Sprint 01 — Bloco 4: lifespan que executa seed dos parâmetros operacionais
             (D11) no startup, idempotente.
+Sprint 01 — Bloco 5 (5.8): middleware auth_guard protege todas as rotas
+            exceto as exceções públicas (ver app/web/middleware.py).
 Endpoints de domínio (casos, pessoas, organizações) entram a partir da
 Sprint 01.
 """
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
-
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-
 from app.config import settings
 from app.services.settings_service import seed_defaults
 from app.web.routes import router as web_router
-
+from app.web.middleware import auth_guard
+from app.api.auth import router as auth_router
 logger = logging.getLogger(__name__)
-
-
 # ---------------------------------------------------------------------------
 # Lifespan — eventos de startup/shutdown da aplicação.
 #
@@ -38,12 +37,8 @@ async def lifespan(app: FastAPI):
         logger.info("Settings seed: %d parametro(s) criado(s).", created)
     else:
         logger.info("Settings seed: todos os parametros ja existiam.")
-
     yield
-
     # Shutdown — nada a fazer por enquanto.
-
-
 app = FastAPI(
     title="CIRCE Intel Desk",
     description="Sistema desktop local de inteligência operacional.",
@@ -64,10 +59,25 @@ app = FastAPI(
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # ---------------------------------------------------------------------------
+# Middleware de proteção de rotas (RF-021) — sub-passo 5.8.
+#
+# auth_guard intercepta TODA requisição: deixa passar as exceções
+# públicas (/health, /static/, /setup, /login, /logout, /docs e afins),
+# exige cookie de sessão válido para o resto, e redireciona para /login
+# ou /setup quando não há. Detalhes e justificativa em
+# app/web/middleware.py.
+#
+# Registrado via app.middleware("http")(...) — forma funcional. FastAPI
+# aplica os middlewares numa pilha; como este é o único, a ordem em
+# relação aos include_router abaixo é indiferente.
+# ---------------------------------------------------------------------------
+app.middleware("http")(auth_guard)
+# ---------------------------------------------------------------------------
 # Rotas web (HTML) — definidas em app/web/routes.py.
 # Inclui pelo menos a raiz /, que renderiza o shell visual.
 # ---------------------------------------------------------------------------
 app.include_router(web_router)
+app.include_router(auth_router)
 # ---------------------------------------------------------------------------
 # Rotas de sistema — diagnóstico e informação operacional.
 # /health continua exatamente como na Sprint 0 (critério de aceite preservado).

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+{# ============================================================
+   Template base de autenticação — CIRCE Intel Desk
+
+   Base MÍNIMA para as telas de "portão" (setup e login).
+   Diferente de base.html: NÃO inclui header, barra de comando,
+   status bar nem os scripts do shell. Workspace e navegação são
+   conceitos pós-autenticação.
+
+   Carrega o mesmo CSS de base.html para manter identidade visual
+   idêntica (CRT calibrado, tipografia híbrida). Carrega theme.js
+   e accent.js para respeitar preferência visual já registrada,
+   mas NÃO carrega first_run.js — o modal de preferências pertence
+   ao shell autenticado, não ao portão.
+
+   Sprint 01 / Bloco 5.7.
+   ============================================================ #}
+<html lang="pt-BR" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>{% block title %}{{ page_title|default('CIRCE Intel Desk') }}{% endblock %}</title>
+  <link rel="preload" href="/static/fonts/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="/static/fonts/JetBrainsMono-Regular.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="stylesheet" href="/static/css/tokens.css" />
+  <link rel="stylesheet" href="/static/css/base.css" />
+  <link rel="stylesheet" href="/static/css/components.css" />
+  <link rel="stylesheet" href="/static/css/layout.css" />
+  <link rel="icon" href="data:," />
+  {# theme.js e accent.js síncronos no head para evitar FOUC. #}
+  <script src="/static/js/theme.js"></script>
+  <script src="/static/js/accent.js"></script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="auth-shell" style="
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-5);
+      background: var(--bg-base);
+  ">
+    <div class="auth-card modal" style="
+        max-width: 420px;
+        width: 100%;
+    ">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+  {% block extra_body %}{% endblock %}
+</body>
+</html>

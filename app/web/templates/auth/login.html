@@ -1,0 +1,80 @@
+{# ============================================================
+   Tela de acesso — CIRCE Intel Desk
+   RF-021 / CA-021.4
+   Sprint 01 / Bloco 5.7
+
+   Form HTML clássico — POST para /login, processado em
+   app/api/auth.py. Sem JavaScript.
+
+   A rota GET /login (Bloco 5.6) passa `show_error` no contexto.
+   Quando verdadeiro, exibe a mensagem genérica de falha
+   (CA-021.4: não revela se foi usuário ou senha).
+   ============================================================ #}
+{% extends "auth/auth_base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="modal__header">
+  <div class="modal__title">CIRCE // Acesso</div>
+  <div class="modal__subtitle">
+    Identifique-se para acessar o sistema.
+  </div>
+</div>
+
+{% if show_error %}
+<div class="modal__section" style="color: var(--error);">
+  Usuário ou senha inválidos.
+</div>
+{% endif %}
+
+<form method="post" action="/login" novalidate>
+  <div class="modal__section">
+    <label for="username" class="modal__section-label">Usuário</label>
+    <input
+      type="text"
+      id="username"
+      name="username"
+      autocomplete="username"
+      autofocus
+      required
+      maxlength="64"
+      style="
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--bg-base);
+        border: var(--border-width-base) solid var(--border-strong);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: var(--font-size-base);
+      "
+    />
+  </div>
+
+  <div class="modal__section">
+    <label for="password" class="modal__section-label">Senha</label>
+    <input
+      type="password"
+      id="password"
+      name="password"
+      autocomplete="current-password"
+      required
+      style="
+        width: 100%;
+        padding: var(--space-3);
+        background: var(--bg-base);
+        border: var(--border-width-base) solid var(--border-strong);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        font-family: var(--font-mono);
+        font-size: var(--font-size-base);
+      "
+    />
+  </div>
+
+  <div class="modal__footer">
+    <button type="submit" class="btn btn--primary">Acessar</button>
+  </div>
+</form>
+{% endblock %}
