@@ -1,14 +1,27 @@
 {# ============================================================
    Tela de acesso — CIRCE Intel Desk
-   RF-021 / CA-021.4
-   Sprint 01 / Bloco 5.7
+   RF-021 / CA-021.4 / CA-021.5 (D34, Bloco 6) / CA-021.7
+   Sprint 01 / Bloco 5.7 + Bloco 6.6
 
    Form HTML clássico — POST para /login, processado em
    app/api/auth.py. Sem JavaScript.
 
-   A rota GET /login (Bloco 5.6) passa `show_error` no contexto.
-   Quando verdadeiro, exibe a mensagem genérica de falha
-   (CA-021.4: não revela se foi usuário ou senha).
+   A rota GET /login passa no contexto:
+   - show_error    : exibe mensagem genérica de falha (CA-021.4).
+   - show_blocked  : exibe mensagem de bloqueio por força bruta
+                     (CA-021.5, D34).
+   - blocked_secs  : segundos restantes para o desbloqueio.
+   - next_url      : URL para retornar após login (CA-021.7).
+
+   Quando ambos show_error e show_blocked vierem juntos
+   (não acontece hoje, mas garantia de consistência), a
+   mensagem de bloqueio tem precedência — é mais informativa
+   e mais útil para o operador.
+
+   O hidden field 'next' está aqui já no Bloco 6.6, mas o
+   POST /login NÃO o consome ainda — está previsto para
+   iteração futura (Bloco 11+). Inocuo enviar, útil ter no
+   form para evitar reorganização do template depois.
    ============================================================ #}
 {% extends "auth/auth_base.html" %}
 
@@ -22,13 +35,21 @@
   </div>
 </div>
 
-{% if show_error %}
+{% if show_blocked %}
+<div class="modal__section" style="color: var(--error);">
+  Conta temporariamente bloqueada por excesso de tentativas.
+  Tente novamente em <strong>{{ blocked_secs }}</strong>
+  segundo{{ 's' if blocked_secs != 1 else '' }}.
+</div>
+{% elif show_error %}
 <div class="modal__section" style="color: var(--error);">
   Usuário ou senha inválidos.
 </div>
 {% endif %}
 
 <form method="post" action="/login" novalidate>
+  <input type="hidden" name="next" value="{{ next_url|default('/') }}" />
+
   <div class="modal__section">
     <label for="username" class="modal__section-label">Usuário</label>
     <input

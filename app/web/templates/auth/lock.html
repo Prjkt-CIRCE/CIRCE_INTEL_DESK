@@ -1,0 +1,51 @@
+{# ============================================================
+   Tela de bloqueio — CIRCE Intel Desk
+   RF-021 / CA-021.7 (inatividade) / CA-021.8 (Ctrl+L)
+   Sprint 01 / Bloco 6.6
+
+   Estado intermediário: o operador ainda tem cookie de sessão
+   válido, mas a UI se comporta como se ele precisasse
+   reautenticar. Acionada por:
+   - Timer de inatividade no cliente (CA-021.7).
+   - Atalho Ctrl+L manual (CA-021.8).
+
+   NÃO tem campo de senha próprio. A reautenticação é o
+   /login normal, com ?next=<url> preservando o estado
+   (CA-021.7: "sem perda de estado"). Decisão consciente:
+   um único caminho de entrada (POST /login), uma única
+   superfície de auth a manter — o /lock é só uma máscara
+   visual sobre a sessão existente.
+
+   Contexto recebido:
+   - from_url : URL onde o operador estava quando o lock
+                disparou. Default '/' se ausente.
+   - next_qs  : from_url já URL-encoded pela rota (lock_page
+                em web/routes.py), pronto para uso direto
+                em href.
+   ============================================================ #}
+{% extends "auth/auth_base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="modal__header">
+  <div class="modal__title">CIRCE // Bloqueado</div>
+  <div class="modal__subtitle">
+    Sessão bloqueada. Reautentique para retomar de onde parou.
+  </div>
+</div>
+
+<div class="modal__section">
+  <p style="color: var(--text-secondary); margin: 0;">
+    Por motivo de inatividade ou bloqueio manual
+    (<code style="font-family: var(--font-mono);">Ctrl+L</code>),
+    a tela foi protegida. Seus dados não foram perdidos.
+  </p>
+</div>
+
+<div class="modal__footer">
+  <a href="/login?next={{ next_qs }}" class="btn btn--primary" role="button">
+    Reautenticar
+  </a>
+</div>
+{% endblock %}

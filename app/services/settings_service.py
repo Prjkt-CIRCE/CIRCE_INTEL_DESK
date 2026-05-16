@@ -13,6 +13,9 @@ Cache: leitura é O(1) via dict em memória. Cache é invalidado
 em escritas (set_value) e populado no startup pelo seed.
 
 Sprint 01 — Bloco 4.
+Bloco 6 (D32-A): inactivity_lock_minutes default ajustado de 15 -> 5
+para alinhar com 06_CRITERIOS_DE_ACEITE.md CA-021.7 e 04_SEGURANCA.md
+§13. Valor 0 indica "nunca bloquear" (D33).
 """
 
 from datetime import datetime, timezone
@@ -25,7 +28,7 @@ from app.models.setting import Setting
 
 
 # ---------------------------------------------------------------------------
-# Defaults — D11
+# Defaults — D11 (Bloco 4); ajuste D32-A no Bloco 6
 # ---------------------------------------------------------------------------
 
 # Cada entrada: (key, default_value_as_str, value_type, description)
@@ -33,9 +36,10 @@ from app.models.setting import Setting
 _DEFAULTS: list[tuple[str, str, str, str]] = [
     (
         "inactivity_lock_minutes",
-        "15",
+        "5",
         "int",
-        "Minutos de inatividade ate bloqueio automatico da sessao.",
+        "Minutos de inatividade ate bloqueio automatico da sessao. "
+        "Valor 0 desativa o bloqueio por inatividade (D33).",
     ),
     (
         "session_hours",

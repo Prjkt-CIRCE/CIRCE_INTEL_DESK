@@ -2,7 +2,7 @@
 {# ============================================================
    Template base de autenticação — CIRCE Intel Desk
 
-   Base MÍNIMA para as telas de "portão" (setup e login).
+   Base MÍNIMA para as telas de "portão" (setup, login, lock).
    Diferente de base.html: NÃO inclui header, barra de comando,
    status bar nem os scripts do shell. Workspace e navegação são
    conceitos pós-autenticação.
@@ -13,7 +13,12 @@
    mas NÃO carrega first_run.js — o modal de preferências pertence
    ao shell autenticado, não ao portão.
 
-   Sprint 01 / Bloco 5.7.
+   <body data-page-public="true">: defesa em profundidade contra
+   o inactivity_lock.js (Bloco 6.7), caso ele venha a ser
+   carregado em alguma rota auth no futuro. O script faz early
+   return ao ver page-public="true".
+
+   Sprint 01 / Bloco 5.7 + 6.8.
    ============================================================ #}
 <html lang="pt-BR" data-theme="dark">
 <head>
@@ -33,7 +38,7 @@
   <script src="/static/js/accent.js"></script>
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body data-page-public="true">
   <div class="auth-shell" style="
       min-height: 100vh;
       display: flex;

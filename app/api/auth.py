@@ -12,6 +12,8 @@ Não contém regra de domínio (03_ARQUITETURA.md §3.1).
 CA-021.1: primeira execução exige cadastro de operador inicial.
 CA-021.2: senha armazenada como hash Argon2id.
 CA-021.4: falha de login devolve mensagem genérica, sem revelar a causa.
+CA-021.5 (Bloco 6): força bruta mitigada via bruteforce_service.
+CA-021.6 (Bloco 6): TTL da sessão lido de settings_service ('session_hours').
 
 Auditoria (CA-021.9) NÃO é tratada aqui — entra no Bloco 7 via refactor.
 Os pontos de inserção estão marcados com TODO(bloco-7).
@@ -25,10 +27,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import settings, SESSION_COOKIE_NAME
+from app.config import SESSION_COOKIE_NAME
 from app.database.session import get_session
 from app.models.user import User
 from app.schemas.auth import LoginRequest, SetupRequest
+from app.services import bruteforce_service, settings_service
 from app.services.auth_service import hash_password, verify_password
 from app.services.session_service import issue_token
 
@@ -43,11 +46,14 @@ router = APIRouter(tags=["auth"])
 # SESSION_COOKIE_NAME mudou de casa no sub-passo 5.8.2: agora vive em
 # app/config.py (constante de módulo), porque o middleware de proteção
 # (app/web/middleware.py) também precisa dela. Fonte única da verdade.
-# Importada acima junto de `settings`.
 
-# Mensagem única para qualquer falha de login (CA-021.4).
+# Mensagem única para qualquer falha de login não-bloqueada (CA-021.4).
 # Nunca diferenciar "usuário não existe" de "senha errada" de
 # "conta desativada" — tudo devolve isto.
+# A mensagem específica de bloqueio é tratada à parte (D34, Bloco 6):
+# o bloqueio só ocorre para usernames que EXISTEM (Decisão B do §8),
+# então revelá-lo não vaza informação nova ao atacante e melhora a UX
+# do operador legítimo, que precisa saber por que não consegue entrar.
 GENERIC_LOGIN_ERROR = "usuário ou senha inválidos"
 
 # Hash dummy: usado quando o username não existe, para que o tempo de
@@ -82,11 +88,15 @@ def _session_ttl_seconds() -> int:
     """
     TTL do cookie de sessão, em segundos.
 
-    Lê settings.SESSION_HOURS (atributo legado de config.py). A
-    migração para settings_service.get_value('session_hours') é
-    escopo do Bloco 6.
+    Bloco 6 (CA-021.6): fonte migrada de settings.SESSION_HOURS
+    (config.py) para settings_service.get_value('session_hours'),
+    cumprindo D11. O parâmetro é editável pelo operador via UI no
+    Bloco 11. Fallback para 8 horas se a chave estiver ausente —
+    nunca deveria acontecer (lifespan seeda no startup), mas é
+    cinto e suspensório.
     """
-    return settings.SESSION_HOURS * 3600
+    hours = int(settings_service.get_value("session_hours", 8))
+    return hours * 3600
 
 
 def _set_session_cookie(response: Response, user_id: int) -> None:
@@ -135,6 +145,9 @@ def post_setup(
 
     Em sucesso: cria o usuário, emite o cookie de sessão e
     redireciona para a raiz já autenticado.
+
+    Sem proteção de bruteforce aqui: só roda na primeira execução,
+    com banco vazio. Não há "usuário a bloquear".
     """
     # Guarda: setup só na primeira execução.
     if _operator_exists(db):
@@ -186,7 +199,7 @@ def post_setup(
 
 
 # --------------------------------------------------------------------
-# POST /login — autenticação (CA-021.4)
+# POST /login — autenticação (CA-021.4, CA-021.5)
 # --------------------------------------------------------------------
 
 @router.post("/login")
@@ -198,17 +211,42 @@ def post_login(
     """
     Autentica um operador existente.
 
-    Em sucesso: emite o cookie de sessão e redireciona para a raiz.
-    Em qualquer falha (usuário inexistente, senha errada, conta
-    desativada, entrada malformada): redireciona para
-    /login?error=1 — mensagem genérica, sem revelar a causa
-    (CA-021.4).
+    Fluxo:
+    1. Valida formato do payload.
+    2. Checa bloqueio por força bruta no username (CA-021.5).
+    3. Busca o usuário; senão, gasta tempo no hash dummy (anti-timing).
+    4. Verifica senha; se errada e usuário existe, registra falha
+       no bruteforce_service (Decisão B: só usernames válidos contam).
+    5. Verifica conta ativa.
+    6. Sucesso: limpa estado de bruteforce, emite cookie, redireciona.
+
+    Em falha de senha/usuário/conta: redireciona para
+    /login?error=1 — mensagem genérica (CA-021.4).
+    Em bloqueio: redireciona para /login?blocked=1&secs=N (D34).
+
+    Importante (Decisão B do Bloco 6 §8): tentativas com username
+    INEXISTENTE não são registradas no bruteforce. Isso evita oráculo
+    de enumeração indireta (atacante notaria que certos usernames
+    "esquentam" mais rápido que outros). Combinado com o hash dummy,
+    o comportamento externo permanece uniforme.
     """
     # Validação de formato. Falha aqui também é "inválido" genérico.
     try:
         data = LoginRequest(username=username, password=password)
     except ValidationError:
         return RedirectResponse(url="/login?error=1", status_code=303)
+
+    # CA-021.5: verificar bloqueio ANTES de qualquer trabalho de CPU.
+    # Se já está bloqueado, nem busca no banco, nem roda Argon2.
+    # Isso também protege contra exaustão (atacante que insiste durante
+    # bloqueio não consegue mais consumir CPU do Argon2).
+    blocked, secs_remaining = bruteforce_service.is_blocked(data.username)
+    if blocked:
+        # TODO(bloco-7): audit_service.log_action(action="login_blocked", username=data.username)
+        return RedirectResponse(
+            url=f"/login?blocked=1&secs={secs_remaining}",
+            status_code=303,
+        )
 
     # Busca o usuário.
     user = db.execute(
@@ -219,21 +257,38 @@ def post_login(
         # Usuário não existe. Roda verify contra o hash dummy para
         # gastar o mesmo tempo de CPU que uma verificação real
         # (mitigação de enumeração por timing). Resultado descartado.
+        # NÃO registra falha no bruteforce_service (Decisão B).
         verify_password(data.password, _DUMMY_HASH)
-        # TODO(bloco-7): audit_service.log_action(action="login_failed", ...)
+        # TODO(bloco-7): audit_service.log_action(action="login_failed", username=data.username)
         return RedirectResponse(url="/login?error=1", status_code=303)
 
     # Usuário existe: verifica a senha de verdade.
     if not verify_password(data.password, user.password_hash):
-        # TODO(bloco-7): audit_service.log_action(action="login_failed", ...)
+        # Falha de senha para usuário válido — CONTA no bruteforce.
+        blocked_now, block_secs = bruteforce_service.register_failure(data.username)
+        # TODO(bloco-7): audit_service.log_action(action="login_failed", user_id=user.id)
+        if blocked_now:
+            # Esta tentativa acabou de ativar (ou estava sob) o bloqueio.
+            # TODO(bloco-7): audit_service.log_action(action="login_blocked", user_id=user.id)
+            return RedirectResponse(
+                url=f"/login?blocked=1&secs={block_secs}",
+                status_code=303,
+            )
         return RedirectResponse(url="/login?error=1", status_code=303)
 
     # Conta desativada: não loga, mesma mensagem genérica.
+    # Não registra falha no bruteforce: a senha estava correta, o
+    # problema é administrativo, não de tentativa hostil.
     if user.active != 1:
-        # TODO(bloco-7): audit_service.log_action(action="login_failed", ...)
+        # TODO(bloco-7): audit_service.log_action(action="login_failed", user_id=user.id)
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # Sucesso. Atualiza last_login_at.
+    # Sucesso. Limpa estado de bruteforce do username (zera contador
+    # e qualquer bloqueio residual — login válido prova que é o
+    # operador legítimo).
+    bruteforce_service.register_success(data.username)
+
+    # Atualiza last_login_at.
     user.last_login_at = _utc_now_iso()
     db.commit()
 
