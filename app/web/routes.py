@@ -189,41 +189,35 @@ async def login_page(
 @router.get("/lock", response_class=HTMLResponse)
 async def lock_page(
     request: Request,
-    from_: str | None = None,
+    db: Session = Depends(get_session),
 ) -> HTMLResponse:
     """
-    Tela de bloqueio (CA-021.7, CA-021.8).
+    Tela de bloqueio (CA-021.7, CA-021.8, CA-021.9).
 
-    Estado intermediário: o operador ainda tem cookie de sessão
-    válido, mas a UI se comporta como se ele precisasse reautenticar.
-    Acionada por:
-    - Timer de inatividade no cliente (CA-021.7).
-    - Atalho Ctrl+L manual (CA-021.8).
+    Registra o evento de bloqueio no audit log (D39, D40, D41):
+    - ?reason=auto   → action="lock_inactivity"
+    - ?reason=manual → action="lock_manual"
+    - sem querystring → action="lock_manual" (default seguro)
 
-    Querystring:
-    - ?from=<url> : URL em que o operador estava quando o lock
-                    disparou. Repassada ao template para construir
-                    o link de "voltar após desbloquear". Default '/'.
-
-    NOTA 1: o parâmetro de função se chama `from_` porque `from` é
-    palavra reservada em Python. Extração via query_params direto
-    é mais simples que importar Query e alias.
-
-    NOTA 2: o URL-encoding do from_url é feito AQUI, na rota, com
-    urllib.parse.quote, e passado pronto ao template (next_qs).
-    Decisão consciente: o filtro |urlencode do Jinja2 deu problema
-    de renderização no Bloco 6.6 (a tag <a> saiu escapada). Manter
-    a transformação no Python é mais previsível.
-
-    A rota é PROTEGIDA pelo middleware (D36, sub-passo 6.5).
+    user_id vem de request.state.user_id (middleware Bloco 5.8).
     """
     from urllib.parse import quote
+    from app.services.audit_service import log_action
 
     from_url = request.query_params.get("from", "/")
-    # Querystring para o link de reautenticação. quote() escapa
-    # caracteres especiais (?, &, =, espaço, /, etc) com codificação
-    # segura para uso dentro de URLs.
+    reason = request.query_params.get("reason", "manual")
     next_qs = quote(from_url, safe="")
+
+    action = "lock_inactivity" if reason == "auto" else "lock_manual"
+    user_id = getattr(request.state, "user_id", None)
+
+    log_action(
+        db,
+        action=action,
+        user_id=user_id,
+        description=f"Tela de bloqueio acionada (reason={reason!r}).",
+    )
+    db.commit()
 
     return templates.TemplateResponse(
         request=request,

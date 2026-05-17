@@ -14,13 +14,11 @@ CA-021.2: senha armazenada como hash Argon2id.
 CA-021.4: falha de login devolve mensagem genérica, sem revelar a causa.
 CA-021.5 (Bloco 6): força bruta mitigada via bruteforce_service.
 CA-021.6 (Bloco 6): TTL da sessão lido de settings_service ('session_hours').
-
-Auditoria (CA-021.9) NÃO é tratada aqui — entra no Bloco 7 via refactor.
-Os pontos de inserção estão marcados com TODO(bloco-7).
+CA-021.9 (Bloco 7): login, falha, logout e bloqueios são logados via audit_service.
 """
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Form, Response
+from fastapi import APIRouter, Depends, Form, Request, Response
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -32,6 +30,7 @@ from app.database.session import get_session
 from app.models.user import User
 from app.schemas.auth import LoginRequest, SetupRequest
 from app.services import bruteforce_service, settings_service
+from app.services.audit_service import log_action
 from app.services.auth_service import hash_password, verify_password
 from app.services.session_service import issue_token
 
@@ -39,77 +38,34 @@ from app.services.session_service import issue_token
 router = APIRouter(tags=["auth"])
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Constantes
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
-# SESSION_COOKIE_NAME mudou de casa no sub-passo 5.8.2: agora vive em
-# app/config.py (constante de módulo), porque o middleware de proteção
-# (app/web/middleware.py) também precisa dela. Fonte única da verdade.
-
-# Mensagem única para qualquer falha de login não-bloqueada (CA-021.4).
-# Nunca diferenciar "usuário não existe" de "senha errada" de
-# "conta desativada" — tudo devolve isto.
-# A mensagem específica de bloqueio é tratada à parte (D34, Bloco 6):
-# o bloqueio só ocorre para usernames que EXISTEM (Decisão B do §8),
-# então revelá-lo não vaza informação nova ao atacante e melhora a UX
-# do operador legítimo, que precisa saber por que não consegue entrar.
 GENERIC_LOGIN_ERROR = "usuário ou senha inválidos"
 
-# Hash dummy: usado quando o username não existe, para que o tempo de
-# resposta do login seja indistinguível entre "usuário inexistente" e
-# "usuário existe, senha errada" (mitigação de enumeração por timing).
-# Calculado uma vez no import. A senha de origem é irrelevante e
-# descartável — nunca corresponde a nada.
 _DUMMY_HASH = hash_password("dummy-password-never-matches-anything")
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Helpers internos
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 def _utc_now_iso() -> str:
-    """
-    Timestamp atual em ISO 8601 UTC.
-
-    Inline aqui por opção consciente: não acoplar a app/utils/time.py
-    sem ter inspecionado aquele módulo. Refatorável em sub-passo futuro.
-    """
     return datetime.now(timezone.utc).isoformat()
 
 
 def _operator_exists(db: Session) -> bool:
-    """True se já existe ao menos um operador cadastrado."""
     result = db.execute(select(User.id).limit(1)).first()
     return result is not None
 
 
 def _session_ttl_seconds() -> int:
-    """
-    TTL do cookie de sessão, em segundos.
-
-    Bloco 6 (CA-021.6): fonte migrada de settings.SESSION_HOURS
-    (config.py) para settings_service.get_value('session_hours'),
-    cumprindo D11. O parâmetro é editável pelo operador via UI no
-    Bloco 11. Fallback para 8 horas se a chave estiver ausente —
-    nunca deveria acontecer (lifespan seeda no startup), mas é
-    cinto e suspensório.
-    """
     hours = int(settings_service.get_value("session_hours", 8))
     return hours * 3600
 
 
 def _set_session_cookie(response: Response, user_id: int) -> None:
-    """
-    Emite o cookie de sessão assinado na resposta dada.
-
-    Atributos (alinhamento A do sub-passo 5.5):
-    - HttpOnly : JS do cliente não lê o cookie.
-    - SameSite=strict : cookie nunca enviado cross-site.
-    - Secure=False : obrigatório para funcionar em http://127.0.0.1.
-    - Path=/ : válido para toda a aplicação.
-    - Max-Age : alinhado ao TTL do token.
-    """
     ttl = _session_ttl_seconds()
     token = issue_token(user_id=user_id, ttl_seconds=ttl)
     response.set_cookie(
@@ -123,9 +79,9 @@ def _set_session_cookie(response: Response, user_id: int) -> None:
     )
 
 
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # POST /setup — criação do operador inicial (CA-021.1, CA-021.2)
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 @router.post("/setup")
 def post_setup(
@@ -140,20 +96,15 @@ def post_setup(
     Cria o operador inicial do sistema.
 
     Só funciona quando a tabela `users` está vazia. Se já existe
-    operador, redireciona para /login (a rota deixa de existir
-    funcionalmente após a primeira execução — CA-021.1).
+    operador, redireciona para /login.
 
-    Em sucesso: cria o usuário, emite o cookie de sessão e
-    redireciona para a raiz já autenticado.
-
-    Sem proteção de bruteforce aqui: só roda na primeira execução,
-    com banco vazio. Não há "usuário a bloquear".
+    Após criar o usuário, registra action="setup" no audit log
+    (CA-021.9). O log e a criação do usuário estão na mesma
+    transação: se o log falhar, o usuário não é criado (ADR-003 §2.4).
     """
-    # Guarda: setup só na primeira execução.
     if _operator_exists(db):
         return RedirectResponse(url="/login", status_code=303)
 
-    # Validação de formato e força da senha (CA-021.3 via schema).
     try:
         data = SetupRequest(
             username=username,
@@ -162,11 +113,8 @@ def post_setup(
             area_atuacao=area_atuacao,
         )
     except ValidationError:
-        # Entrada inválida (senha curta, campo vazio, etc.).
-        # Volta para a tela de setup sinalizando erro genérico.
         return RedirectResponse(url="/setup?error=1", status_code=303)
 
-    # Criação do usuário. Senha vira hash Argon2id aqui (CA-021.2).
     now = _utc_now_iso()
     user = User(
         username=data.username,
@@ -181,26 +129,31 @@ def post_setup(
     )
     db.add(user)
     try:
-        db.commit()
+        db.flush()  # envia o INSERT, popula user.id, mas não faz commit ainda
     except IntegrityError:
-        # Defensivo: colisão de username. Em teoria impossível aqui
-        # (users estava vazia), mas não confiamos — cinto e suspensório.
         db.rollback()
         return RedirectResponse(url="/setup?error=1", status_code=303)
 
-    db.refresh(user)
+    # Audit log na mesma transação (ADR-003 §2.4).
+    # Se falhar aqui, o rollback desfaz também a criação do usuário.
+    log_action(
+        db,
+        action="setup",
+        user_id=user.id,
+        user_display_name=user.display_name,
+        description=f"Operador inicial '{user.username}' cadastrado.",
+    )
 
-    # TODO(bloco-7): audit_service.log_action(action="setup", user_id=user.id)
+    db.commit()
 
-    # Operador criado e já autenticado.
     redirect = RedirectResponse(url="/", status_code=303)
     _set_session_cookie(redirect, user_id=user.id)
     return redirect
 
 
-# --------------------------------------------------------------------
-# POST /login — autenticação (CA-021.4, CA-021.5)
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# POST /login — autenticação (CA-021.4, CA-021.5, CA-021.9)
+# ---------------------------------------------------------------------------
 
 @router.post("/login")
 def post_login(
@@ -211,38 +164,31 @@ def post_login(
     """
     Autentica um operador existente.
 
-    Fluxo:
-    1. Valida formato do payload.
-    2. Checa bloqueio por força bruta no username (CA-021.5).
-    3. Busca o usuário; senão, gasta tempo no hash dummy (anti-timing).
-    4. Verifica senha; se errada e usuário existe, registra falha
-       no bruteforce_service (Decisão B: só usernames válidos contam).
-    5. Verifica conta ativa.
-    6. Sucesso: limpa estado de bruteforce, emite cookie, redireciona.
+    Todos os eventos de login são registrados em audit_log (CA-021.9):
+    - login_blocked : tentativa durante bloqueio ativo.
+    - login_failed  : credencial inválida ou conta desativada.
+    - login         : autenticação bem-sucedida.
 
-    Em falha de senha/usuário/conta: redireciona para
-    /login?error=1 — mensagem genérica (CA-021.4).
-    Em bloqueio: redireciona para /login?blocked=1&secs=N (D34).
-
-    Importante (Decisão B do Bloco 6 §8): tentativas com username
-    INEXISTENTE não são registradas no bruteforce. Isso evita oráculo
-    de enumeração indireta (atacante notaria que certos usernames
-    "esquentam" mais rápido que outros). Combinado com o hash dummy,
-    o comportamento externo permanece uniforme.
+    Cada log_action está na mesma transação do evento de domínio
+    (ADR-003 §2.4). Falha de log bloqueia a ação principal.
     """
-    # Validação de formato. Falha aqui também é "inválido" genérico.
     try:
         data = LoginRequest(username=username, password=password)
     except ValidationError:
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # CA-021.5: verificar bloqueio ANTES de qualquer trabalho de CPU.
-    # Se já está bloqueado, nem busca no banco, nem roda Argon2.
-    # Isso também protege contra exaustão (atacante que insiste durante
-    # bloqueio não consegue mais consumir CPU do Argon2).
+    # CA-021.5: verificar bloqueio antes de qualquer trabalho de CPU.
     blocked, secs_remaining = bruteforce_service.is_blocked(data.username)
     if blocked:
-        # TODO(bloco-7): audit_service.log_action(action="login_blocked", username=data.username)
+        # Sem user_id: não sabemos ainda se o username é válido.
+        log_action(
+            db,
+            action="login_blocked",
+            description=f"Tentativa bloqueada para username '{data.username}'.",
+            metadata={"username": data.username, "secs_remaining": secs_remaining},
+            status="alert",
+        )
+        db.commit()
         return RedirectResponse(
             url=f"/login?blocked=1&secs={secs_remaining}",
             status_code=303,
@@ -254,65 +200,105 @@ def post_login(
     ).scalar_one_or_none()
 
     if user is None:
-        # Usuário não existe. Roda verify contra o hash dummy para
-        # gastar o mesmo tempo de CPU que uma verificação real
-        # (mitigação de enumeração por timing). Resultado descartado.
-        # NÃO registra falha no bruteforce_service (Decisão B).
+        # Usuário inexistente: roda hash dummy para equalizar tempo de resposta.
+        # NÃO registra no bruteforce (Decisão B).
         verify_password(data.password, _DUMMY_HASH)
-        # TODO(bloco-7): audit_service.log_action(action="login_failed", username=data.username)
+        log_action(
+            db,
+            action="login_failed",
+            description=f"Username '{data.username}' não encontrado.",
+            metadata={"reason": "unknown_user"},
+            status="failure",
+        )
+        db.commit()
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # Usuário existe: verifica a senha de verdade.
+    # Usuário existe: verifica a senha.
     if not verify_password(data.password, user.password_hash):
-        # Falha de senha para usuário válido — CONTA no bruteforce.
         blocked_now, block_secs = bruteforce_service.register_failure(data.username)
-        # TODO(bloco-7): audit_service.log_action(action="login_failed", user_id=user.id)
+        log_action(
+            db,
+            action="login_failed",
+            user_id=user.id,
+            user_display_name=user.display_name,
+            metadata={"reason": "wrong_password"},
+            status="failure",
+        )
         if blocked_now:
-            # Esta tentativa acabou de ativar (ou estava sob) o bloqueio.
-            # TODO(bloco-7): audit_service.log_action(action="login_blocked", user_id=user.id)
+            log_action(
+                db,
+                action="login_blocked",
+                user_id=user.id,
+                user_display_name=user.display_name,
+                description=f"Bloqueio ativado após falhas repetidas.",
+                metadata={"secs_remaining": block_secs},
+                status="alert",
+            )
+            db.commit()
             return RedirectResponse(
                 url=f"/login?blocked=1&secs={block_secs}",
                 status_code=303,
             )
+        db.commit()
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # Conta desativada: não loga, mesma mensagem genérica.
-    # Não registra falha no bruteforce: a senha estava correta, o
-    # problema é administrativo, não de tentativa hostil.
+    # Conta desativada.
     if user.active != 1:
-        # TODO(bloco-7): audit_service.log_action(action="login_failed", user_id=user.id)
+        log_action(
+            db,
+            action="login_failed",
+            user_id=user.id,
+            user_display_name=user.display_name,
+            metadata={"reason": "account_disabled"},
+            status="failure",
+        )
+        db.commit()
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # Sucesso. Limpa estado de bruteforce do username (zera contador
-    # e qualquer bloqueio residual — login válido prova que é o
-    # operador legítimo).
+    # Sucesso.
     bruteforce_service.register_success(data.username)
-
-    # Atualiza last_login_at.
     user.last_login_at = _utc_now_iso()
-    db.commit()
 
-    # TODO(bloco-7): audit_service.log_action(action="login", user_id=user.id)
+    log_action(
+        db,
+        action="login",
+        user_id=user.id,
+        user_display_name=user.display_name,
+        description="Login bem-sucedido.",
+    )
+
+    db.commit()
 
     redirect = RedirectResponse(url="/", status_code=303)
     _set_session_cookie(redirect, user_id=user.id)
     return redirect
 
 
-# --------------------------------------------------------------------
-# POST /logout — encerramento de sessão
-# --------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# POST /logout — encerramento de sessão (CA-021.9)
+# ---------------------------------------------------------------------------
 
 @router.post("/logout")
-def post_logout():
+def post_logout(
+    request: Request,
+    db: Session = Depends(get_session),
+):
     """
-    Encerra a sessão: apaga o cookie e redireciona para /login.
+    Encerra a sessão: loga o evento, apaga o cookie e redireciona.
 
-    O token em si ainda seria válido até expirar se reapresentado,
-    mas o cookie foi removido do cliente. Invalidação server-side
-    real (blocklist) é desnecessária para single-user local (D17).
+    user_id vem de request.state.user_id, populado pelo middleware
+    de autenticação (Bloco 5.8). Se por algum motivo não estiver
+    presente (sessão expirada, acesso direto), loga sem user_id.
     """
-    # TODO(bloco-7): audit_service.log_action(action="logout", ...)
+    user_id = getattr(request.state, "user_id", None)
+
+    log_action(
+        db,
+        action="logout",
+        user_id=user_id,
+        description="Sessão encerrada pelo operador.",
+    )
+    db.commit()
 
     redirect = RedirectResponse(url="/login", status_code=303)
     redirect.delete_cookie(
