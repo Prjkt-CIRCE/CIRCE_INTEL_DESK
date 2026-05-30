@@ -20,6 +20,7 @@ from app.services.settings_service import seed_defaults
 from app.web.routes import router as web_router
 from app.web.middleware import auth_guard
 from app.api.auth import router as auth_router
+from app.api.cases import router as cases_router
 logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Lifespan — eventos de startup/shutdown da aplicação.
@@ -78,6 +79,7 @@ app.middleware("http")(auth_guard)
 # ---------------------------------------------------------------------------
 app.include_router(web_router)
 app.include_router(auth_router)
+app.include_router(cases_router)
 # ---------------------------------------------------------------------------
 # Rotas de sistema — diagnóstico e informação operacional.
 # /health continua exatamente como na Sprint 0 (critério de aceite preservado).

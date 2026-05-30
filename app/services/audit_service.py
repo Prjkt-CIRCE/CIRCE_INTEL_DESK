@@ -16,6 +16,8 @@ Regras inegociáveis (ADR-003):
   - Erro de log bloqueia a ação principal (04_SEGURANCA.md §7.1).
 
 Sprint 01 — Bloco 7.
+Sprint 01 — Bloco 8 (ADR-003a): parâmetro manage_transaction em log_action,
+para permitir auditoria atômica de operações que criam/alteram entidades.
 """
 
 from __future__ import annotations
@@ -156,6 +158,7 @@ def log_action(
     description: Optional[str] = None,
     metadata: Optional[dict[str, Any]] = None,
     status: str = "success",
+    manage_transaction: bool = True,
 ) -> AuditLog:
     """
     Insere um registro imutável em audit_logs.
@@ -163,6 +166,18 @@ def log_action(
     Esta função deve ser chamada dentro da MESMA transação da ação de domínio
     (ADR-003 §2.4). Se o log falhar, a transação inteira faz rollback e a
     ação de domínio também é desfeita. Não há ação não-logada.
+
+    Controle de transação (ADR-003a):
+        manage_transaction=True  (padrão): a função abre a transação com
+            BEGIN IMMEDIATE antes de ler o último hash, garantindo o lock de
+            escrita do SQLite (ADR-003 §2.3). Use para eventos autônomos que
+            commitam logo em seguida (login, logout, lock).
+        manage_transaction=False: a função NÃO abre a transação. O chamador é
+            responsável por ter aberto BEGIN IMMEDIATE e por commitar/rollback.
+            Use em serviços de domínio que inserem uma entidade e auditam na
+            mesma transação — pois o INSERT da entidade precede o log (para
+            materializar entity_id) e já abre a transação, impedindo um segundo
+            BEGIN aqui (cannot start a transaction within a transaction).
 
     A função usa BEGIN IMMEDIATE para garantir exclusividade de escrita
     durante a leitura do último hash e a inserção do novo registro,
@@ -178,6 +193,7 @@ def log_action(
         description:      texto livre descritivo.
         metadata:         dict com dados extras; serializado como JSON canônico.
         status:           "success" | "failure" | "alert" (padrão: "success").
+        manage_transaction: ver bloco "Controle de transação" acima.
 
     Returns:
         AuditLog: o objeto inserido (com id preenchido pelo banco).
@@ -187,8 +203,11 @@ def log_action(
                    O chamador deve deixar propagar para garantir rollback.
     """
     # 1. Captura o hash do último registro (ou None se tabela vazia)
-    #    BEGIN IMMEDIATE garante lock de escrita desde já (ADR-003 §2.3)
-    db.execute(text("BEGIN IMMEDIATE"))
+    #    BEGIN IMMEDIATE garante lock de escrita desde já (ADR-003 §2.3).
+    #    Quando manage_transaction=False, o chamador já abriu a transação
+    #    (ADR-003a) — não reabrimos, sob pena de erro de transação aninhada.
+    if manage_transaction:
+        db.execute(text("BEGIN IMMEDIATE"))
 
     row = db.execute(
         text("SELECT record_hash FROM audit_logs ORDER BY id DESC LIMIT 1")
