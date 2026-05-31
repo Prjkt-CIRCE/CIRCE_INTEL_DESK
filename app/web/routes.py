@@ -24,6 +24,10 @@ active_page, page_title, inactivity_minutes). Centraliza a
 leitura de settings_service para evitar duplicação em cada
 rota e garantir que a injeção de data-inactivity-minutes no
 <body> não seja esquecida em rotas futuras.
+
+Sprint 01 / Bloco 8.4: a rota /cases foi despromovida de
+placeholder para a tela funcional (cases/list.html). É a
+ÚNICA mudança deste sub-passo neste arquivo.
 """
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -80,7 +84,7 @@ def _shell_context(
 
 # ---------------------------------------------------------------------------
 # Helper interno para renderizar páginas placeholder.
-# Reduz repetição entre as 5 rotas placeholder.
+# Reduz repetição entre as rotas placeholder restantes.
 # ---------------------------------------------------------------------------
 def _render_placeholder(
     request: Request,
@@ -232,22 +236,27 @@ async def lock_page(
 
 
 # ---------------------------------------------------------------------------
-# Placeholders — 5 páginas de domínio.
+# Casos — RF-001. Sprint 01 / Bloco 8, Sub-passo 8.4.
+# Tela funcional (despromovida de placeholder). O conteúdo dinâmico
+# (lista, criação) é servido pela API REST /api/cases consumida pelo
+# cases.js. Usa _shell_context (NÃO _render_placeholder) para preservar
+# a injeção de inactivity_minutes no <body> (D33).
 # ---------------------------------------------------------------------------
 @router.get("/cases", response_class=HTMLResponse)
 async def cases_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Placeholder da tela de Casos. Implementação: Sprint 01."""
-    return _render_placeholder(
+    """Tela funcional de Casos (RF-001) — listagem + criação via /api/cases."""
+    return templates.TemplateResponse(
         request=request,
-        template_name="placeholders/cases.html",
-        active_page="cases",
-        page_title="CIRCE // Casos",
-        workspace_id=workspace_id,
+        name="cases/list.html",
+        context=_shell_context(workspace_id, "cases", "CIRCE // Casos"),
     )
 
 
+# ---------------------------------------------------------------------------
+# Placeholders — páginas de domínio ainda não implementadas.
+# ---------------------------------------------------------------------------
 @router.get("/persons", response_class=HTMLResponse)
 async def persons_page(
     request: Request, workspace_id: str = "default"

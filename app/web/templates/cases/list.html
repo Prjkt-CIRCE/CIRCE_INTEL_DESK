@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{# ============================================================
+   Tela funcional de Casos — RF-001
+   Sprint 01 · Bloco 8 · Sub-passo 8.4
+
+   Escopo 8.4: listar + criar (sem reload). Editar/arquivar/filtro: 8.5.
+   Coluna de data: "Criado em" (created_at) — decisão do operador.
+
+   Usa exclusivamente classes canônicas do design system
+   (components.css / layout.css): btn, field, input, table, badge.
+   Zero CSS novo. JS específico carregado via extra_body
+   (toast.js + cases.js), não no shell global.
+   ============================================================ #}
+
+{% block title %}CIRCE // Casos{% endblock %}
+
+{% block content %}
+
+{# ---- Cabeçalho de listagem (09_DESIGN_SYSTEM.md §10.1) ---- #}
+<div class="app-content__page-header">
+  <div>
+    <h1 class="app-content__page-title">
+      ─── CASOS ATIVOS ─── <span id="cases-count" class="mono text-tertiary">00 REGISTROS</span> ───
+    </h1>
+    <div class="app-content__page-subtitle">RF-001 · Cadastro e gestão de casos</div>
+  </div>
+  <div class="app-content__page-actions">
+    <button type="button" id="cases-new-btn" class="btn btn--primary">[+] NOVO CASO</button>
+  </div>
+</div>
+
+{# ---- Tabela de casos ---- #}
+<table class="table table--zebra">
+  <thead>
+    <tr>
+      <th data-sort-key="case_code" style="cursor: pointer;">
+        Código <span class="sort-indicator mono"></span>
+      </th>
+      <th data-sort-key="name" style="cursor: pointer;">
+        Nome <span class="sort-indicator mono"></span>
+      </th>
+      <th data-sort-key="status" style="cursor: pointer;">
+        Status <span class="sort-indicator mono"></span>
+      </th>
+      <th data-sort-key="created_at" style="cursor: pointer;">
+        Criado em <span class="sort-indicator mono"></span>
+      </th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="cases-tbody">
+    {# Preenchido dinamicamente por cases.js. #}
+  </tbody>
+</table>
+
+<div id="cases-empty" class="app-content__placeholder-message" hidden>
+  Nenhum caso cadastrado ainda. Use <strong>[+] NOVO CASO</strong> (ou Ctrl+N) para criar o primeiro.
+</div>
+
+{% endblock %}
+
+
+{% block extra_body %}
+
+{# ============================================================
+   Modal "Novo caso" — padrão data-open dos modais da casa.
+   Vive no nível do body (via extra_body), como _command_palette.html.
+   ============================================================ #}
+<div class="modal-backdrop" id="case-create-modal" data-open="false"
+     role="dialog" aria-modal="true" aria-labelledby="case-create-title">
+  <div class="card" style="width: 560px; max-width: calc(100vw - var(--space-6));">
+
+    <div class="card__header">
+      <div class="card__title" id="case-create-title">NOVO CASO</div>
+      <div class="card__subtitle">RF-001 · O código será gerado automaticamente</div>
+    </div>
+
+    <div class="card__body">
+      <div class="field">
+        <label class="field__label field__label--required" for="case-form-name">Nome do caso</label>
+        <input type="text" class="input" id="case-form-name"
+               placeholder="Ex.: Operação Vento Norte" autocomplete="off" />
+        <span class="field__error" id="case-form-name-error" hidden></span>
+        <span class="field__hint">Obrigatório. O sistema gera o código no padrão {ano}-{NNNN}.</span>
+      </div>
+
+      <div class="showcase-grid-2">
+        <div class="field">
+          <label class="field__label" for="case-form-unit">Unidade responsável</label>
+          <input type="text" class="input" id="case-form-unit"
+                 placeholder="Ex.: DRACO" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field__label" for="case-form-responsible">Operador responsável</label>
+          <input type="text" class="input" id="case-form-responsible"
+                 placeholder="Ex.: J.SILVA" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="case-form-procedure">Procedimento relacionado</label>
+        <input type="text" class="input input--mono" id="case-form-procedure"
+               placeholder="Nº do procedimento (opcional)" autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="case-form-description">Resumo</label>
+        <textarea class="input" id="case-form-description"
+                  placeholder="Descrição livre do caso (opcional)..."></textarea>
+      </div>
+    </div>
+
+    <div class="card__footer">
+      <button type="button" class="btn btn--text" data-modal-close>Cancelar</button>
+      <button type="button" class="btn btn--primary" id="case-form-save" disabled>Salvar caso</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="/static/js/toast.js" defer></script>
+<script src="/static/js/cases.js" defer></script>
+
+{% endblock %}
