@@ -1,28 +1,41 @@
 /* ============================================================
    CIRCE Intel Desk — cases.js
-   Tela funcional de Casos (RF-001) — Sprint 01, Bloco 8, Sub-passo 8.4.
+   Tela funcional de Casos (RF-001) — Sprint 01, Bloco 8, Sub-passo 8.5.
 
-   Escopo do 8.4 (decisão do operador, §13 do ESTADO_DO_PROJETO):
-     - Listar casos (GET /api/cases).
-     - Criar caso via modal "Novo caso" (POST /api/cases), sem reload.
-     - Validar nome inline (CA-001.3): botão Salvar desabilitado se vazio.
-     - Ordenar pela coluna do cabeçalho (CA-001.7).
-   FORA do 8.4 (ficam para o 8.5): editar (CA-001.4), arquivar +
-   filtro "arquivados" (CA-001.5).
+   Herdado do 8.4 (intacto): listar (GET), criar via modal sem reload
+   (POST), validar nome inline (CA-001.3), ordenar por cabeçalho
+   (CA-001.7), coluna "Criado em" (created_at).
 
-   Coluna de data exibida: "Criado em" (created_at) — decisão do operador (a).
+   Novo no 8.5 (decisões do operador):
+     - Editar caso (CA-001.4): MESMO modal, em modo dual create/edit.
+       Submit despacha POST (create) ou PATCH /api/cases/{id} (edit).
+       No modo editar, case_code aparece readonly (D48 — imutável, NÃO
+       vai no PATCH); status nunca entra no formulário (D48).
+       Idempotência (D49): só envia campos que mudaram; sem mudança,
+       fecha com toast info e NÃO chama a API.
+     - Arquivar caso (CA-001.5): modal de confirmação no padrão da casa
+       (decisão (c)), depois DELETE /api/cases/{id} (arquivamento lógico).
+     - Filtro "arquivados" (CA-001.5): toggle que alterna include_archived
+       na query da listagem.
+   Campos no modo editar: os MESMOS do modal atual (nome, unidade,
+   responsável, procedimento, resumo) — decisão do operador. fact_date/
+   tags/notes ficam para a tela de detalhe (8.6).
 
-   Guarda de sessão expirada: o fetch para /api/cases pode encontrar
-   DOIS comportamentos, dependendo de qual camada intercepta:
-     - middleware do auth_guard: redirect 303 -> /login (HTML).
-     - endpoint _current_user_id: 401 JSON (rede de segurança, D30).
-   Tratamos AMBOS (decisão do operador). Em qualquer um, mandamos o
-   operador para /login em vez de quebrar silenciosamente.
+   Contratos da API (validados no 8.3):
+     - PATCH  /api/cases/{id}  body CaseUpdate (campos opcionais: name,
+       description, procedure_number, fact_date, unit, responsible,
+       tags, notes). case_code e status NÃO entram (D48).
+     - DELETE /api/cases/{id}  retorna o caso com status="archived".
+     - GET    /api/cases?include_archived=&sort_by=&descending=
+
+   Preservado: D53 (reusa window.CIRCE.toast, não recria), D54
+   (handleAuthLapse trata 401 JSON E redirect/HTML em TODOS os fetch),
+   D55 (Ctrl+N e ação cases.new da palette — agora abrem modo "create"
+   explicitamente).
 
    Padrão da casa: IIFE, "use strict", namespace window.CIRCE,
    setup no DOMContentLoaded com guarda de readyState, early-return
-   se os elementos da tela não existem (script carregado só nesta tela,
-   mas a guarda é barata e segue o molde de command_palette.js).
+   se os elementos da tela não existem.
    ============================================================ */
 
 (function () {
@@ -33,24 +46,45 @@
   // ---------- Estado ----------
   var state = {
     cases: [],
-    sortBy: "created_at",   // alinhado ao default da API
-    descending: true        // alinhado ao default da API
+    sortBy: "created_at",     // alinhado ao default da API
+    descending: true,         // alinhado ao default da API
+    includeArchived: false,   // toggle "Mostrar arquivados" (8.5)
+    mode: "create",           // "create" | "edit" — modo do modal (8.5)
+    editingId: null,          // id do caso em edição (modo edit)
+    editingOriginal: null     // snapshot do caso original p/ diff (D49)
   };
 
   // ---------- DOM refs ----------
   var tbodyEl = null;
   var countEl = null;
   var emptyEl = null;
+  var titleLabelEl = null;
   var newBtnEl = null;
+  var showArchivedEl = null;
+
+  // Modal criar/editar
   var modalEl = null;
+  var modalTitleEl = null;
+  var modalSubtitleEl = null;
+  var codeFieldEl = null;
+  var formCodeEl = null;
   var formNameEl = null;
   var formDescEl = null;
   var formUnitEl = null;
   var formRespEl = null;
   var formProcEl = null;
   var nameErrorEl = null;
+  var nameHintEl = null;
   var saveBtnEl = null;
   var cancelEls = null;
+
+  // Modal de confirmação de arquivamento
+  var archiveModalEl = null;
+  var archiveCodeEl = null;
+  var archiveNameEl = null;
+  var archiveConfirmBtnEl = null;
+  var archiveCancelEls = null;
+  var archiveTargetId = null;   // id do caso a arquivar (enquanto o modal está aberto)
 
   // ---------- Utilidades de data ----------
   // created_at chega como string ISO (CaseResponse serializa do ORM).
@@ -83,7 +117,7 @@
     return '<span class="badge ' + entry.cls + '">' + entry.txt + "</span>";
   }
 
-  // ---------- Guarda de sessão expirada ----------
+  // ---------- Guarda de sessão expirada (D54) ----------
   // Detecta os dois caminhos possíveis. Retorna true se a resposta
   // indica sessão expirada/não-autenticada (e já redirecionou).
   function handleAuthLapse(response) {
@@ -102,7 +136,7 @@
   // ---------- Carregar lista ----------
   function loadCases() {
     var url = API_BASE
-      + "?include_archived=false"
+      + "?include_archived=" + (state.includeArchived ? "true" : "false")
       + "&sort_by=" + encodeURIComponent(state.sortBy)
       + "&descending=" + (state.descending ? "true" : "false");
 
@@ -131,8 +165,16 @@
       });
   }
 
+  // ---------- Título da listagem conforme filtro ----------
+  function updateTitleLabel() {
+    if (!titleLabelEl) return;
+    titleLabelEl.textContent = state.includeArchived
+      ? "─── TODOS OS CASOS ───"
+      : "─── CASOS ATIVOS ───";
+  }
+
   // ---------- Renderizar tabela ----------
-  function renderTable() {
+  function renderTable(highlightId) {
     if (!tbodyEl) return;
     tbodyEl.innerHTML = "";
 
@@ -148,7 +190,7 @@
     if (emptyEl) emptyEl.hidden = true;
 
     state.cases.forEach(function (c) {
-      tbodyEl.appendChild(buildRow(c));
+      tbodyEl.appendChild(buildRow(c, highlightId != null && c.id === highlightId));
     });
   }
 
@@ -174,9 +216,12 @@
     tdCreated.textContent = formatDate(c.created_at);
     tr.appendChild(tdCreated);
 
-    // Coluna de ação — "Abrir" leva à tela de detalhe (8.6).
-    // Por ora aponta para a futura rota; não é alvo do 8.4.
+    // ---------- Coluna de ação (8.5) ----------
+    // "Abrir" continua desabilitado (é do 8.6 — tela de detalhe).
+    // "Editar" e "Arquivar" são os novos do 8.5.
+    // Arquivar só faz sentido em casos ativos; em arquivados, ocultamos.
     var tdAction = document.createElement("td");
+
     var openBtn = document.createElement("button");
     openBtn.className = "btn btn--text";
     openBtn.type = "button";
@@ -184,13 +229,37 @@
     openBtn.disabled = true;             // habilita no 8.6 (tela de detalhe)
     openBtn.title = "Detalhe do caso — Sub-passo 8.6";
     tdAction.appendChild(openBtn);
+
+    var editBtn = document.createElement("button");
+    editBtn.className = "btn btn--text";
+    editBtn.type = "button";
+    editBtn.textContent = "Editar";
+    editBtn.setAttribute("data-action", "edit");
+    tdAction.appendChild(editBtn);
+
+    if (c.status !== "archived") {
+      var archiveBtn = document.createElement("button");
+      archiveBtn.className = "btn btn--text";
+      archiveBtn.type = "button";
+      archiveBtn.textContent = "Arquivar";
+      archiveBtn.setAttribute("data-action", "archive");
+      tdAction.appendChild(archiveBtn);
+    }
+
     tr.appendChild(tdAction);
 
     if (highlight) {
-      // Marca a linha recém-criada (CA-001.2 — feedback visual).
       tr.setAttribute("data-selected", "true");
     }
     return tr;
+  }
+
+  // Localiza um caso no estado pelo id.
+  function findCase(id) {
+    for (var i = 0; i < state.cases.length; i++) {
+      if (state.cases[i].id === id) return state.cases[i];
+    }
+    return null;
   }
 
   // ---------- Ordenação por cabeçalho (CA-001.7) ----------
@@ -226,19 +295,55 @@
     });
   }
 
-  // ---------- Modal "Novo caso" ----------
-  function openModal() {
+  // ---------- Modal criar/editar (modo dual, 8.5) ----------
+
+  // Preenche/limpa os campos do formulário a partir de um caso (ou vazio).
+  function fillForm(c) {
+    if (formNameEl) formNameEl.value = c ? (c.name || "") : "";
+    if (formDescEl) formDescEl.value = c ? (c.description || "") : "";
+    if (formUnitEl) formUnitEl.value = c ? (c.unit || "") : "";
+    if (formRespEl) formRespEl.value = c ? (c.responsible || "") : "";
+    if (formProcEl) formProcEl.value = c ? (c.procedure_number || "") : "";
+  }
+
+  function openModalCreate() {
     if (!modalEl) return;
-    // Limpa o formulário a cada abertura.
-    if (formNameEl) formNameEl.value = "";
-    if (formDescEl) formDescEl.value = "";
-    if (formUnitEl) formUnitEl.value = "";
-    if (formRespEl) formRespEl.value = "";
-    if (formProcEl) formProcEl.value = "";
+    state.mode = "create";
+    state.editingId = null;
+    state.editingOriginal = null;
+
+    if (modalTitleEl) modalTitleEl.textContent = "NOVO CASO";
+    if (modalSubtitleEl) modalSubtitleEl.textContent = "RF-001 · O código será gerado automaticamente";
+    if (codeFieldEl) codeFieldEl.hidden = true;        // sem case_code no create
+    if (formCodeEl) formCodeEl.value = "";
+    if (nameHintEl) { nameHintEl.hidden = false; }
+    if (saveBtnEl) saveBtnEl.textContent = "Salvar caso";
+
+    fillForm(null);
     clearNameError();
     validateName();
     modalEl.setAttribute("data-open", "true");
     requestAnimationFrame(function () { if (formNameEl) formNameEl.focus(); });
+  }
+
+  function openModalEdit(c) {
+    if (!modalEl || !c) return;
+    state.mode = "edit";
+    state.editingId = c.id;
+    state.editingOriginal = c;
+
+    if (modalTitleEl) modalTitleEl.textContent = "EDITAR CASO";
+    if (modalSubtitleEl) modalSubtitleEl.textContent = "RF-001 · O código do caso é imutável";
+    if (codeFieldEl) codeFieldEl.hidden = false;       // mostra case_code readonly (D48)
+    if (formCodeEl) formCodeEl.value = c.case_code || "";
+    if (nameHintEl) { nameHintEl.hidden = true; }      // dica de geração não se aplica ao editar
+    if (saveBtnEl) saveBtnEl.textContent = "Salvar alterações";
+
+    fillForm(c);
+    clearNameError();
+    validateName();
+    modalEl.setAttribute("data-open", "true");
+    requestAnimationFrame(function () { if (formNameEl) { formNameEl.focus(); formNameEl.select(); } });
   }
 
   function closeModal() {
@@ -263,7 +368,18 @@
     return valid;
   }
 
-  // ---------- Criar caso (POST) ----------
+  // Lê os campos do formulário, normalizando vazios para string vazia.
+  function readForm() {
+    return {
+      name: formNameEl ? formNameEl.value.trim() : "",
+      description: formDescEl ? formDescEl.value.trim() : "",
+      unit: formUnitEl ? formUnitEl.value.trim() : "",
+      responsible: formRespEl ? formRespEl.value.trim() : "",
+      procedure_number: formProcEl ? formProcEl.value.trim() : ""
+    };
+  }
+
+  // ---------- Submit (despacha create vs. edit) ----------
   function submitCase() {
     if (!validateName()) {
       showNameError("O nome do caso é obrigatório.");
@@ -271,14 +387,24 @@
       return;
     }
     clearNameError();
+    if (state.mode === "edit") {
+      submitEdit();
+    } else {
+      submitCreate();
+    }
+  }
+
+  // ---------- Criar caso (POST) — fluxo do 8.4 ----------
+  function submitCreate() {
     if (saveBtnEl) saveBtnEl.disabled = true; // evita duplo-clique
 
-    var payload = { name: formNameEl.value.trim() };
+    var f = readForm();
+    var payload = { name: f.name };
     // Opcionais — só envia se preenchidos (o backend normaliza vazios para None).
-    if (formDescEl && formDescEl.value.trim()) payload.description = formDescEl.value.trim();
-    if (formUnitEl && formUnitEl.value.trim()) payload.unit = formUnitEl.value.trim();
-    if (formRespEl && formRespEl.value.trim()) payload.responsible = formRespEl.value.trim();
-    if (formProcEl && formProcEl.value.trim()) payload.procedure_number = formProcEl.value.trim();
+    if (f.description) payload.description = f.description;
+    if (f.unit) payload.unit = f.unit;
+    if (f.responsible) payload.responsible = f.responsible;
+    if (f.procedure_number) payload.procedure_number = f.procedure_number;
 
     fetch(API_BASE, {
       method: "POST",
@@ -289,7 +415,6 @@
       .then(function (response) {
         if (handleAuthLapse(response)) return null;
         if (response.status === 422) {
-          // Erro de validação do schema (ex.: nome vazio escapou).
           return response.json().then(function (body) {
             throw { kind: "validation", body: body };
           });
@@ -316,20 +441,82 @@
       });
   }
 
+  // ---------- Editar caso (PATCH) — CA-001.4 ----------
+  // Idempotência (D49): monta o payload apenas com os campos que mudaram
+  // em relação ao caso original. Sem diff => não chama a API.
+  function submitEdit() {
+    var id = state.editingId;
+    var orig = state.editingOriginal;
+    if (id == null || !orig) return;
+
+    var f = readForm();
+    var fields = ["name", "description", "unit", "responsible", "procedure_number"];
+    var payload = {};
+    fields.forEach(function (k) {
+      // Original pode vir null; tratamos null como "" para comparar com o form.
+      var origVal = orig[k] == null ? "" : String(orig[k]);
+      if (f[k] !== origVal) {
+        // Campo opcional esvaziado vira null (limpa no banco); name nunca é "".
+        payload[k] = (f[k] === "" && k !== "name") ? null : f[k];
+      }
+    });
+
+    // D49 — nada mudou: fecha sem chamar a API, sem gerar log.
+    if (Object.keys(payload).length === 0) {
+      closeModal();
+      if (window.CIRCE && window.CIRCE.toast) {
+        window.CIRCE.toast.info("Sem alterações", "Nenhum campo foi modificado.");
+      }
+      return;
+    }
+
+    if (saveBtnEl) saveBtnEl.disabled = true; // evita duplo-clique
+
+    fetch(API_BASE + "/" + encodeURIComponent(id), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify(payload)
+    })
+      .then(function (response) {
+        if (handleAuthLapse(response)) return null;
+        if (response.status === 422) {
+          return response.json().then(function (body) {
+            throw { kind: "validation", body: body };
+          });
+        }
+        if (response.status === 404) {
+          throw new Error("Caso não encontrado (HTTP 404).");
+        }
+        if (!response.ok) {
+          throw new Error("Falha ao editar caso (HTTP " + response.status + ").");
+        }
+        return response.json();
+      })
+      .then(function (updated) {
+        if (updated === null) return; // redirecionou
+        onCaseUpdated(updated);
+      })
+      .catch(function (err) {
+        if (saveBtnEl) saveBtnEl.disabled = false;
+        if (err && err.kind === "validation") {
+          showNameError("O nome do caso é obrigatório.");
+          return;
+        }
+        console.error("[cases] erro ao editar caso", err);
+        if (window.CIRCE && window.CIRCE.toast) {
+          window.CIRCE.toast.error("Erro", "Não foi possível salvar as alterações.");
+        }
+      });
+  }
+
   // CA-001.2: caso criado aparece na lista SEM reload.
   function onCaseCreated(created) {
     closeModal();
-    // Insere conforme a ordenação atual. Caminho simples e correto:
-    // recarrega a lista do servidor (fonte de verdade da ordenação).
-    // Mas para o feedback "sem reload" ser nítido, inserimos a linha
-    // imediatamente no topo (created_at desc é o default) e marcamos,
-    // depois sincronizamos.
     state.cases.unshift(created);
     if (state.sortBy === "created_at" && state.descending) {
-      // Já está no topo na ordem correta — render direto com destaque.
-      renderTableWithHighlight(created.id);
+      renderTable(created.id);
     } else {
-      // Ordenação diferente: recarrega para respeitar o sort do servidor.
       loadCases();
     }
     if (window.CIRCE && window.CIRCE.toast) {
@@ -337,20 +524,107 @@
     }
   }
 
-  function renderTableWithHighlight(highlightId) {
-    if (!tbodyEl) return;
-    tbodyEl.innerHTML = "";
-    if (countEl) {
-      countEl.textContent = pad2(state.cases.length) + " REGISTRO"
-        + (state.cases.length === 1 ? "" : "S");
+  // CA-001.4: alteração reflete na lista sem reload.
+  function onCaseUpdated(updated) {
+    closeModal();
+    // Substitui o registro no estado e re-renderiza, mantendo a ordem atual.
+    for (var i = 0; i < state.cases.length; i++) {
+      if (state.cases[i].id === updated.id) {
+        state.cases[i] = updated;
+        break;
+      }
     }
-    if (emptyEl) emptyEl.hidden = state.cases.length !== 0;
-    state.cases.forEach(function (c) {
-      tbodyEl.appendChild(buildRow(c, c.id === highlightId));
-    });
+    renderTable(updated.id);
+    if (window.CIRCE && window.CIRCE.toast) {
+      window.CIRCE.toast.success("Caso atualizado", updated.case_code + " — " + updated.name);
+    }
   }
 
-  // ---------- Registro na command palette (Ctrl+K) ----------
+  // ---------- Arquivar caso (CA-001.5) ----------
+  // Decisão (c): confirmação via modal da casa, não confirm() nativo.
+  function openArchiveModal(c) {
+    if (!archiveModalEl || !c) return;
+    archiveTargetId = c.id;
+    if (archiveCodeEl) archiveCodeEl.textContent = c.case_code || "—";
+    if (archiveNameEl) archiveNameEl.textContent = c.name || "";
+    archiveModalEl.setAttribute("data-open", "true");
+    requestAnimationFrame(function () { if (archiveConfirmBtnEl) archiveConfirmBtnEl.focus(); });
+  }
+
+  function closeArchiveModal() {
+    if (!archiveModalEl) return;
+    archiveModalEl.setAttribute("data-open", "false");
+    archiveTargetId = null;
+  }
+
+  function confirmArchive() {
+    var id = archiveTargetId;
+    if (id == null) { closeArchiveModal(); return; }
+    if (archiveConfirmBtnEl) archiveConfirmBtnEl.disabled = true;
+
+    fetch(API_BASE + "/" + encodeURIComponent(id), {
+      method: "DELETE",
+      headers: { "Accept": "application/json" },
+      credentials: "same-origin"
+    })
+      .then(function (response) {
+        if (handleAuthLapse(response)) return null;
+        if (response.status === 404) {
+          throw new Error("Caso não encontrado (HTTP 404).");
+        }
+        if (!response.ok) {
+          throw new Error("Falha ao arquivar caso (HTTP " + response.status + ").");
+        }
+        return response.json();
+      })
+      .then(function (archived) {
+        if (archived === null) return; // redirecionou
+        onCaseArchived(archived);
+      })
+      .catch(function (err) {
+        console.error("[cases] erro ao arquivar caso", err);
+        if (window.CIRCE && window.CIRCE.toast) {
+          window.CIRCE.toast.error("Erro", "Não foi possível arquivar o caso.");
+        }
+      })
+      .then(function () {
+        // finally — reabilita o botão e fecha o modal em qualquer desfecho.
+        if (archiveConfirmBtnEl) archiveConfirmBtnEl.disabled = false;
+        closeArchiveModal();
+      });
+  }
+
+  // CA-001.5: arquivado some da lista padrão; recarrega respeitando o filtro.
+  function onCaseArchived(archived) {
+    // Recarrega do servidor: garante coerência com o filtro atual
+    // (se "Mostrar arquivados" estiver desligado, ele desaparece; se
+    // ligado, reaparece já com badge [ARQUIVADO]).
+    loadCases();
+    if (window.CIRCE && window.CIRCE.toast) {
+      window.CIRCE.toast.success("Caso arquivado", archived.case_code + " — " + archived.name);
+    }
+  }
+
+  // ---------- Delegação de ações na tabela (editar / arquivar) ----------
+  function onTbodyClick(e) {
+    var btn = e.target.closest ? e.target.closest("button[data-action]") : null;
+    if (!btn) return;
+    var tr = btn.closest("tr[data-case-id]");
+    if (!tr) return;
+    var id = parseInt(tr.getAttribute("data-case-id"), 10);
+    if (isNaN(id)) return;
+    var c = findCase(id);
+    if (!c) return;
+
+    var action = btn.getAttribute("data-action");
+    if (action === "edit") {
+      openModalEdit(c);
+    } else if (action === "archive") {
+      openArchiveModal(c);
+    }
+  }
+
+  // ---------- Registro na command palette (Ctrl+K) — D55 ----------
   function registerPaletteAction() {
     if (window.CIRCE && window.CIRCE.palette && typeof window.CIRCE.palette.register === "function") {
       window.CIRCE.palette.register({
@@ -359,7 +633,7 @@
         group: "Ações",
         keywords: ["novo", "caso", "criar", "case", "new"],
         hint: "Ctrl+N",
-        handler: function () { openModal(); }
+        handler: function () { openModalCreate(); }
       });
     }
   }
@@ -371,22 +645,46 @@
 
     countEl = document.getElementById("cases-count");
     emptyEl = document.getElementById("cases-empty");
+    titleLabelEl = document.getElementById("cases-title-label");
     newBtnEl = document.getElementById("cases-new-btn");
-    modalEl = document.getElementById("case-create-modal");
+    showArchivedEl = document.getElementById("cases-show-archived");
 
+    modalEl = document.getElementById("case-create-modal");
     if (modalEl) {
+      modalTitleEl = modalEl.querySelector("#case-create-title");
+      modalSubtitleEl = modalEl.querySelector("#case-create-subtitle");
+      codeFieldEl = modalEl.querySelector("#case-form-code-field");
+      formCodeEl = modalEl.querySelector("#case-form-code");
       formNameEl = modalEl.querySelector("#case-form-name");
       formDescEl = modalEl.querySelector("#case-form-description");
       formUnitEl = modalEl.querySelector("#case-form-unit");
       formRespEl = modalEl.querySelector("#case-form-responsible");
       formProcEl = modalEl.querySelector("#case-form-procedure");
       nameErrorEl = modalEl.querySelector("#case-form-name-error");
+      nameHintEl = modalEl.querySelector("#case-form-name-hint");
       saveBtnEl = modalEl.querySelector("#case-form-save");
       cancelEls = modalEl.querySelectorAll("[data-modal-close]");
     }
 
-    // Botão "Novo caso" abre o modal.
-    if (newBtnEl) newBtnEl.addEventListener("click", openModal);
+    archiveModalEl = document.getElementById("case-archive-modal");
+    if (archiveModalEl) {
+      archiveCodeEl = archiveModalEl.querySelector("#case-archive-code");
+      archiveNameEl = archiveModalEl.querySelector("#case-archive-name");
+      archiveConfirmBtnEl = archiveModalEl.querySelector("#case-archive-confirm");
+      archiveCancelEls = archiveModalEl.querySelectorAll("[data-archive-cancel]");
+    }
+
+    // Botão "Novo caso" abre o modal em modo create.
+    if (newBtnEl) newBtnEl.addEventListener("click", openModalCreate);
+
+    // Toggle "Mostrar arquivados".
+    if (showArchivedEl) {
+      showArchivedEl.addEventListener("change", function () {
+        state.includeArchived = !!showArchivedEl.checked;
+        updateTitleLabel();
+        loadCases();
+      });
+    }
 
     // Validação inline do nome (CA-001.3).
     if (formNameEl) {
@@ -396,43 +694,60 @@
       });
     }
 
-    // Salvar.
+    // Salvar (despacha create/edit).
     if (saveBtnEl) saveBtnEl.addEventListener("click", submitCase);
 
-    // Cancelar / fechar.
+    // Cancelar / fechar o modal de criar/editar.
     if (cancelEls) {
-      cancelEls.forEach(function (el) {
-        el.addEventListener("click", closeModal);
-      });
+      cancelEls.forEach(function (el) { el.addEventListener("click", closeModal); });
     }
-
-    // Backdrop click fecha (padrão dos modais da casa).
     if (modalEl) {
       modalEl.addEventListener("click", function (e) {
         if (e.target === modalEl) closeModal();
       });
     }
 
-    // Esc fecha o modal (somente quando aberto).
+    // Modal de confirmação de arquivamento: confirmar / cancelar / backdrop.
+    if (archiveConfirmBtnEl) archiveConfirmBtnEl.addEventListener("click", confirmArchive);
+    if (archiveCancelEls) {
+      archiveCancelEls.forEach(function (el) { el.addEventListener("click", closeArchiveModal); });
+    }
+    if (archiveModalEl) {
+      archiveModalEl.addEventListener("click", function (e) {
+        if (e.target === archiveModalEl) closeArchiveModal();
+      });
+    }
+
+    // Delegação das ações por linha (editar / arquivar).
+    tbodyEl.addEventListener("click", onTbodyClick);
+
+    // Teclado: Esc fecha o modal aberto (confirmação tem prioridade);
+    // Ctrl+N abre "Novo caso" (D55).
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && modalEl && modalEl.getAttribute("data-open") === "true") {
-        e.preventDefault();
-        closeModal();
+      if (e.key === "Escape") {
+        if (archiveModalEl && archiveModalEl.getAttribute("data-open") === "true") {
+          e.preventDefault();
+          closeArchiveModal();
+          return;
+        }
+        if (modalEl && modalEl.getAttribute("data-open") === "true") {
+          e.preventDefault();
+          closeModal();
+          return;
+        }
       }
-      // Ctrl+N abre "Novo caso" quando nesta tela (atalho previsto no
-      // modal de atalhos da 0.5, marcado para a Sprint 01).
       if ((e.ctrlKey || e.metaKey) && (e.key === "n" || e.key === "N")) {
-        // Só intercepta se o palette não estiver aberto.
         var paletteOpen = window.CIRCE && window.CIRCE.palette
           && typeof window.CIRCE.palette.isOpen === "function"
           && window.CIRCE.palette.isOpen();
         if (!paletteOpen) {
           e.preventDefault();
-          openModal();
+          openModalCreate();
         }
       }
     });
 
+    updateTitleLabel();
     setupSortHeaders();
     registerPaletteAction();
     loadCases();
@@ -442,7 +757,7 @@
   window.CIRCE = window.CIRCE || {};
   window.CIRCE.cases = {
     reload: loadCases,
-    openNew: openModal
+    openNew: openModalCreate
   };
 
   if (document.readyState === "loading") {

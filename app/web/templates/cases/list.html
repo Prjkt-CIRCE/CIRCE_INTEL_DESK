@@ -2,10 +2,21 @@
 
 {# ============================================================
    Tela funcional de Casos — RF-001
-   Sprint 01 · Bloco 8 · Sub-passo 8.4
+   Sprint 01 · Bloco 8 · Sub-passo 8.5
 
-   Escopo 8.4: listar + criar (sem reload). Editar/arquivar/filtro: 8.5.
-   Coluna de data: "Criado em" (created_at) — decisão do operador.
+   Escopo 8.5 (decisões do operador):
+     - Editar caso (CA-001.4): MESMO modal da criação, em modo dual
+       criar/editar. case_code aparece readonly no modo editar (D48,
+       imutável, não vai no PATCH). status fora do formulário (D48).
+     - Arquivar caso (CA-001.5): DELETE lógico, com confirmação via
+       modal no padrão da casa (não confirm() nativo).
+     - Filtro "arquivados": toggle simples na barra de ações.
+   Campos no modo editar: os MESMOS do modal atual (nome, unidade,
+   responsável, procedimento, resumo). fact_date/tags/notes ficam
+   para a tela de detalhe (8.6) — decisão do operador.
+
+   Herdado do 8.4 (intacto): listar + criar sem reload, ordenação,
+   coluna "Criado em" (created_at).
 
    Usa exclusivamente classes canônicas do design system
    (components.css / layout.css): btn, field, input, table, badge.
@@ -17,16 +28,31 @@
 
 {% block content %}
 
-{# ---- Cabeçalho de listagem (09_DESIGN_SYSTEM.md §10.1) ---- #}
-<div class="app-content__page-header">
+{# ---- Cabeçalho de listagem (09_DESIGN_SYSTEM.md §10.1) ----
+   Layout 8.5: título + subtítulo + botão [+] NOVO CASO à esquerda;
+   toggle "arquivados" empurrado à extrema direita.
+   Flex forçado no container via style pontual (mesmo recurso usado
+   para larguras de modal no 8.4) — não cria classe CSS nova. O
+   align-items:flex-start mantém o toggle alinhado ao topo do bloco. #}
+<div class="app-content__page-header"
+     style="display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4);">
   <div>
     <h1 class="app-content__page-title">
-      ─── CASOS ATIVOS ─── <span id="cases-count" class="mono text-tertiary">00 REGISTROS</span> ───
+      <span id="cases-title-label">─── CASOS ATIVOS ───</span>
+      <span id="cases-count" class="mono text-tertiary">00 REGISTROS</span> ───
     </h1>
     <div class="app-content__page-subtitle">RF-001 · Cadastro e gestão de casos</div>
+    <div style="margin-top: var(--space-3);">
+      <button type="button" id="cases-new-btn" class="btn btn--primary">[+] NOVO CASO</button>
+    </div>
   </div>
-  <div class="app-content__page-actions">
-    <button type="button" id="cases-new-btn" class="btn btn--primary">[+] NOVO CASO</button>
+  <div class="app-content__page-actions" style="flex-shrink: 0;">
+    {# Toggle "arquivados" — checkbox + label no padrão da casa (8.5, CA-001.5). #}
+    <label for="cases-show-archived"
+           style="display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+      <input type="checkbox" id="cases-show-archived" />
+      <span class="field__label mono" style="margin: 0;">Mostrar arquivados</span>
+    </label>
   </div>
 </div>
 
@@ -64,8 +90,13 @@
 {% block extra_body %}
 
 {# ============================================================
-   Modal "Novo caso" — padrão data-open dos modais da casa.
-   Vive no nível do body (via extra_body), como _command_palette.html.
+   Modal "Novo caso / Editar caso" — modo dual (8.5).
+   Padrão data-open dos modais da casa. Vive no nível do body
+   (via extra_body), como _command_palette.html.
+
+   Título, subtítulo e o campo case_code são ajustados por JS
+   conforme o modo. No modo editar, case_code aparece readonly
+   (D48 — imutável, não entra no PATCH). status nunca aparece (D48).
    ============================================================ #}
 <div class="modal-backdrop" id="case-create-modal" data-open="false"
      role="dialog" aria-modal="true" aria-labelledby="case-create-title">
@@ -73,16 +104,24 @@
 
     <div class="card__header">
       <div class="card__title" id="case-create-title">NOVO CASO</div>
-      <div class="card__subtitle">RF-001 · O código será gerado automaticamente</div>
+      <div class="card__subtitle" id="case-create-subtitle">RF-001 · O código será gerado automaticamente</div>
     </div>
 
     <div class="card__body">
+      {# case_code — só visível no modo editar; sempre readonly (D48). #}
+      <div class="field" id="case-form-code-field" hidden>
+        <label class="field__label" for="case-form-code">Código do caso</label>
+        <input type="text" class="input input--mono input--readonly" id="case-form-code"
+               readonly tabindex="-1" />
+        <span class="field__hint">Imutável após a criação.</span>
+      </div>
+
       <div class="field">
         <label class="field__label field__label--required" for="case-form-name">Nome do caso</label>
         <input type="text" class="input" id="case-form-name"
                placeholder="Ex.: Operação Vento Norte" autocomplete="off" />
         <span class="field__error" id="case-form-name-error" hidden></span>
-        <span class="field__hint">Obrigatório. O sistema gera o código no padrão {ano}-{NNNN}.</span>
+        <span class="field__hint" id="case-form-name-hint">Obrigatório. O sistema gera o código no padrão {ano}-{NNNN}.</span>
       </div>
 
       <div class="showcase-grid-2">
@@ -114,6 +153,41 @@
     <div class="card__footer">
       <button type="button" class="btn btn--text" data-modal-close>Cancelar</button>
       <button type="button" class="btn btn--primary" id="case-form-save" disabled>Salvar caso</button>
+    </div>
+
+  </div>
+</div>
+
+{# ============================================================
+   Modal de confirmação de arquivamento (8.5, CA-001.5, decisão (c)).
+   Padrão da casa. Arquivamento é LÓGICO (status='archived'),
+   reversível ao desmarcar o filtro — mas confirmamos por ser
+   uma mudança de estado relevante na rotina do operador.
+   ============================================================ #}
+<div class="modal-backdrop" id="case-archive-modal" data-open="false"
+     role="dialog" aria-modal="true" aria-labelledby="case-archive-title">
+  <div class="card" style="width: 480px; max-width: calc(100vw - var(--space-6));">
+
+    <div class="card__header">
+      <div class="card__title" id="case-archive-title">ARQUIVAR CASO</div>
+      <div class="card__subtitle">Arquivamento lógico · reversível pelo filtro "arquivados"</div>
+    </div>
+
+    <div class="card__body">
+      <p>
+        Arquivar o caso
+        <strong class="mono" id="case-archive-code">—</strong>
+        <span id="case-archive-name">—</span>?
+      </p>
+      <p class="text-secondary">
+        Ele sai da lista padrão e passa a aparecer somente com o filtro
+        "Mostrar arquivados" ativo. Nenhum dado é apagado.
+      </p>
+    </div>
+
+    <div class="card__footer">
+      <button type="button" class="btn btn--text" data-archive-cancel>Cancelar</button>
+      <button type="button" class="btn btn--primary" id="case-archive-confirm">Arquivar</button>
     </div>
 
   </div>
