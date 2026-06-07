@@ -2,6 +2,18 @@
    CIRCE Intel Desk — cases.js
    Tela funcional de Casos (RF-001) — Sprint 01, Bloco 8, Sub-passo 8.5.
 
+   Sub-passo 8.6-c (alterações cirúrgicas sobre o 8.5):
+     - Botão "Abrir" de cada linha agora navega para /cases/{id}
+       (tela de detalhe, RF-001 visualizar). Antes ficava disabled.
+     - loadCases(onLoaded?) aceita um callback opcional, chamado após
+       renderizar a tabela (necessário porque o fetch é assíncrono).
+     - setup() chama loadCases(maybeOpenEditFromUrl): se a URL trouxer
+       ?edit=id (vinda do botão "Editar" da tela de detalhe, D56), o
+       modal de edição abre já no caso certo. Caso fora da lista atual
+       (ex.: arquivado com filtro desligado) é buscado por GET singular.
+       O ?edit é limpo da URL (replaceState) para não reabrir no F5.
+   Nenhuma outra lógica do 8.5 foi tocada.
+
    Herdado do 8.4 (intacto): listar (GET), criar via modal sem reload
    (POST), validar nome inline (CA-001.3), ordenar por cabeçalho
    (CA-001.7), coluna "Criado em" (created_at).
@@ -134,7 +146,12 @@
   }
 
   // ---------- Carregar lista ----------
-  function loadCases() {
+  // onLoaded (opcional, 8.6-c): callback chamado APÓS o estado ser
+  // populado e a tabela renderizada. Necessário porque o fetch é
+  // assíncrono — abrir o modal de edição a partir de ?edit=id exige que
+  // state.cases já esteja preenchido. Chamadas sem argumento (todas as
+  // anteriores ao 8.6) seguem funcionando sem mudança.
+  function loadCases(onLoaded) {
     var url = API_BASE
       + "?include_archived=" + (state.includeArchived ? "true" : "false")
       + "&sort_by=" + encodeURIComponent(state.sortBy)
@@ -156,6 +173,7 @@
         if (data === null) return; // já redirecionou
         state.cases = Array.isArray(data) ? data : [];
         renderTable();
+        if (typeof onLoaded === "function") onLoaded();
       })
       .catch(function (err) {
         console.error("[cases] erro ao carregar lista", err);
@@ -226,8 +244,11 @@
     openBtn.className = "btn btn--text";
     openBtn.type = "button";
     openBtn.textContent = "Abrir";
-    openBtn.disabled = true;             // habilita no 8.6 (tela de detalhe)
-    openBtn.title = "Detalhe do caso — Sub-passo 8.6";
+    // 8.6-c: navega para a tela de detalhe (RF-001 visualizar). O id é
+    // sempre numérico (vem do banco) e casa com a rota /cases/{case_id:int}.
+    openBtn.addEventListener("click", function () {
+      window.location.href = "/cases/" + encodeURIComponent(c.id);
+    });
     tdAction.appendChild(openBtn);
 
     var editBtn = document.createElement("button");
@@ -638,6 +659,71 @@
     }
   }
 
+  // ---------- Abertura do modal de edição via ?edit=id (8.6-c / D56) ----------
+  // A tela de detalhe (case_detail.js) manda o operador de volta à lista
+  // com /cases?edit={id} quando ele clica "Editar". Aqui detectamos esse
+  // parâmetro e abrimos o modal de edição já no caso certo.
+  //
+  // Dois caminhos para obter o caso:
+  //   1) Está na lista já carregada (state.cases) — uso direto.
+  //   2) Não está (ex.: caso ARQUIVADO e o filtro "Mostrar arquivados"
+  //      está desligado) — busco via GET /api/cases/{id} como fallback,
+  //      para não falhar silenciosamente.
+  //
+  // Em qualquer caso, limpamos o ?edit da URL (replaceState) para que um
+  // F5 não reabra o modal indefinidamente.
+  function maybeOpenEditFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var raw = params.get("edit");
+    if (raw === null) return;
+
+    var id = parseInt(raw, 10);
+
+    // Remove o ?edit da URL sem recarregar a página.
+    params.delete("edit");
+    var clean = window.location.pathname
+      + (params.toString() ? "?" + params.toString() : "");
+    window.history.replaceState({}, "", clean);
+
+    if (isNaN(id)) return;
+
+    var c = findCase(id);
+    if (c) {
+      openModalEdit(c);
+      return;
+    }
+
+    // Fallback: caso fora da lista atual (provavelmente arquivado).
+    fetch(API_BASE + "/" + encodeURIComponent(id), {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      credentials: "same-origin"
+    })
+      .then(function (response) {
+        if (handleAuthLapse(response)) return null;
+        if (response.status === 404) {
+          if (window.CIRCE && window.CIRCE.toast) {
+            window.CIRCE.toast.error("Caso não encontrado", "O caso a editar não existe mais.");
+          }
+          return null;
+        }
+        if (!response.ok) {
+          throw new Error("Falha ao carregar caso para edição (HTTP " + response.status + ").");
+        }
+        return response.json();
+      })
+      .then(function (caseObj) {
+        if (caseObj === null) return;
+        openModalEdit(caseObj);
+      })
+      .catch(function (err) {
+        console.error("[cases] erro ao abrir edição via ?edit", err);
+        if (window.CIRCE && window.CIRCE.toast) {
+          window.CIRCE.toast.error("Erro", "Não foi possível abrir o caso para edição.");
+        }
+      });
+  }
+
   // ---------- Inicialização ----------
   function setup() {
     tbodyEl = document.getElementById("cases-tbody");
@@ -722,7 +808,14 @@
     tbodyEl.addEventListener("click", onTbodyClick);
 
     // Teclado: Esc fecha o modal aberto (confirmação tem prioridade);
-    // Ctrl+N abre "Novo caso" (D55).
+    // Alt+N abre "Novo caso" (revisa D55 — ver nota abaixo).
+    //
+    // NOTA (8.6, revisão de D55): o atalho era Ctrl+N, mas Ctrl+N é
+    // RESERVADO pelo navegador (nova janela) e disparado antes do JS,
+    // então preventDefault() não o segura numa aba normal. Trocado por
+    // Alt+N, que é capturável. A guarda !ctrlKey && !metaKey impede que
+    // Ctrl+Alt+N (ou Cmd+Alt+N) dispare por engano. A formalização desta
+    // revisão de D55 fica para o fechamento do bloco (8.7).
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") {
         if (archiveModalEl && archiveModalEl.getAttribute("data-open") === "true") {
@@ -736,7 +829,7 @@
           return;
         }
       }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "n" || e.key === "N")) {
+      if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "n" || e.key === "N")) {
         var paletteOpen = window.CIRCE && window.CIRCE.palette
           && typeof window.CIRCE.palette.isOpen === "function"
           && window.CIRCE.palette.isOpen();
@@ -750,7 +843,9 @@
     updateTitleLabel();
     setupSortHeaders();
     registerPaletteAction();
-    loadCases();
+    // 8.6-c: ao terminar de carregar a lista, verifica ?edit=id na URL
+    // (vinda do botão "Editar" da tela de detalhe, D56) e abre o modal.
+    loadCases(maybeOpenEditFromUrl);
   }
 
   // ---------- API pública (mínima) ----------
