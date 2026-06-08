@@ -808,14 +808,17 @@
     tbodyEl.addEventListener("click", onTbodyClick);
 
     // Teclado: Esc fecha o modal aberto (confirmação tem prioridade);
-    // Alt+N abre "Novo caso" (revisa D55 — ver nota abaixo).
+    // Ctrl+Alt+N abre "Novo caso" (revisa D55 — ver nota abaixo).
     //
     // NOTA (8.6, revisão de D55): o atalho era Ctrl+N, mas Ctrl+N é
-    // RESERVADO pelo navegador (nova janela) e disparado antes do JS,
-    // então preventDefault() não o segura numa aba normal. Trocado por
-    // Alt+N, que é capturável. A guarda !ctrlKey && !metaKey impede que
-    // Ctrl+Alt+N (ou Cmd+Alt+N) dispare por engano. A formalização desta
-    // revisão de D55 fica para o fechamento do bloco (8.7).
+    // RESERVADO pelo navegador (nova janela) e disparado antes do JS.
+    // Trocado para a combinação com Alt. Em teclados ABNT2 / pt-BR, o
+    // operador aperta Ctrl+Alt+N (a tecla AltGr da direita também serve,
+    // pois o Windows a reporta como Alt). Para cobrir os dois caminhos
+    // — AltGr chega ao JS como Alt puro; Ctrl+Alt chega com ambos —
+    // a condição exige altKey e a letra N, SEM travar em !ctrlKey.
+    // metaKey (Cmd) é excluído para não colidir em macOS. A formalização
+    // desta revisão de D55 fica para o fechamento do bloco (8.7).
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") {
         if (archiveModalEl && archiveModalEl.getAttribute("data-open") === "true") {
@@ -829,7 +832,7 @@
           return;
         }
       }
-      if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "n" || e.key === "N")) {
+      if (e.altKey && !e.metaKey && (e.key === "n" || e.key === "N")) {
         var paletteOpen = window.CIRCE && window.CIRCE.palette
           && typeof window.CIRCE.palette.isOpen === "function"
           && window.CIRCE.palette.isOpen();
