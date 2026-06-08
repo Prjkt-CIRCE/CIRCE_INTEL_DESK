@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{# ============================================================
+   Tela de detalhe de um caso — RF-001 (visualizar)
+   Sprint 01 · Bloco 8 · Sub-passo 8.6
+
+   Escopo 8.6 (decisões do operador):
+     - (a) Renderização SPA-leve: este template é apenas o ESQUELETO.
+       O conteúdo é buscado em GET /api/cases/{id} pelo case_detail.js
+       e injetado nos slots [data-field]. Mantém coerência com o
+       padrão 8.4/8.5 (cases.js) e não duplica formatação de data/badge.
+     - (b/D56) "Editar" NÃO reabre modal aqui: navega para
+       /cases?edit={id} — a lista abre o modal de edição já no caso
+       certo. Evita refatorar o cases.js fechado/validado no 8.5.
+     - (c) "Reativar" caso arquivado: FORA do 8.6 (conflita com D48 —
+       status fora do update; não há endpoint de reativação). Em caso
+       arquivado exibimos apenas uma nota; nenhum botão de reativar.
+     - (d) Voltar: link "< CASOS" para /cases + atalho Esc (case_detail.js).
+
+   Layout conforme 09_DESIGN_SYSTEM.md §10.2 (Detalhe):
+     - Header: identificador (mono) + nome (sans) + strip de metadados.
+     - Seções organizadas por separadores ASCII (─── TÍTULO ───).
+
+   ZERO CSS NOVO (decisão do operador, 8.6-a). Apenas classes canônicas
+   já existentes no projeto — confirmadas via Select-String em
+   components.css/layout.css — e style inline pontual para espaçamento,
+   exatamente o recurso que list.html (8.4/8.5) já adota. Classes usadas:
+     app-content__page-header, app-content__page-title,
+     app-content__page-subtitle, app-content__placeholder-message,
+     card, card__body, btn, btn--text, btn--primary, badge,
+     mono, text-secondary, text-tertiary.
+   Títulos de seção e listas de definição são feitos com mono +
+   text-tertiary + style pontual (NÃO há classe def-list/section-title).
+
+   Campos do CaseResponse (schemas/cases.py): id, case_code, name,
+   description, procedure_number, fact_date, unit, responsible, status,
+   tags, notes, created_at, created_by, updated_at, updated_by.
+
+   JS específico carregado via extra_body (case_detail.js, 8.6-b).
+   ============================================================ #}
+
+{% block title %}CIRCE // Detalhe do caso{% endblock %}
+
+{% block content %}
+
+{# ---- Navegação de volta (decisão (d)) ----
+   Link sempre presente; o atalho Esc é ligado pelo case_detail.js.
+   btn--text é classe canônica; a margem é style pontual. #}
+<div class="mono" style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
+  <a href="/cases" class="btn btn--text" id="case-detail-back">&lt; CASOS</a>
+  <span class="text-tertiary">[Esc]</span>
+</div>
+
+{# ============================================================
+   Estado A — CARREGANDO. Visível por padrão; o JS o esconde
+   quando os dados chegam (ou troca para o estado de erro).
+   ============================================================ #}
+<div id="case-detail-loading" class="app-content__placeholder-message">
+  Carregando caso<span class="mono">…</span>
+</div>
+
+{# ============================================================
+   Estado B — NÃO ENCONTRADO (HTTP 404 ou id inválido).
+   Escondido por padrão; o JS o exibe quando aplicável.
+   ============================================================ #}
+<div id="case-detail-notfound" class="app-content__placeholder-message" hidden>
+  Caso não encontrado. Ele pode ter sido removido ou o endereço está incorreto.
+  <div style="margin-top: var(--space-3);">
+    <a href="/cases" class="btn btn--primary">Voltar para a lista</a>
+  </div>
+</div>
+
+{# ============================================================
+   Estado C — CONTEÚDO. Escondido até os dados chegarem.
+   Todos os slots de valor são marcados com data-field="<campo>"
+   e preenchidos pelo case_detail.js. Texto "—" é placeholder
+   neutro para campos vazios.
+   ============================================================ #}
+<div id="case-detail-content" hidden>
+
+  {# ---- Header §10.2: identificador (mono) + nome (sans) + strip ---- #}
+  <div class="app-content__page-header">
+    <h1 class="app-content__page-title" style="display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap;">
+      <span class="mono text-secondary" data-field="case_code">—</span>
+      <span data-field="name">—</span>
+      <span data-field="status_badge"><!-- badge injetado pelo JS --></span>
+    </h1>
+
+    {# Strip horizontal de metadados (§10.2: "metadados em strip logo abaixo"). #}
+    <div class="app-content__page-subtitle mono" style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
+      <span>unidade <span class="text-secondary" data-field="unit">—</span></span>
+      <span>resp. <span class="text-secondary" data-field="responsible">—</span></span>
+      <span>criado <span class="text-secondary" data-field="created_at">—</span></span>
+    </div>
+
+    {# Ações primárias à direita do título (§10.1/§10.2). Editar segue D56. #}
+    <div style="margin-top: var(--space-3);">
+      <button type="button" id="case-detail-edit" class="btn btn--primary">Editar</button>
+    </div>
+  </div>
+
+  {# ---- Nota de caso arquivado (decisão (c) + D48) ----
+     Exibida pelo JS somente quando status === "archived".
+     Sem botão de reativar — reativação é assunto de sub-passo/ADR futuro. #}
+  <div id="case-detail-archived-note" class="card" hidden
+       style="margin-top: var(--space-4);">
+    <div class="card__body text-secondary">
+      Este caso está <strong>arquivado</strong>. A reativação de casos arquivados
+      será tratada em etapa futura — por ora, o arquivamento é reversível apenas
+      pelo filtro "Mostrar arquivados" na lista.
+    </div>
+  </div>
+
+  {# ---- ─── RESUMO ─── ----
+     Título de seção: separador ASCII em mono/text-tertiary (sem classe
+     dedicada). O separador carrega o peso visual exigido pelo §10.2. #}
+  <div style="margin-top: var(--space-5);">
+    <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── RESUMO ───</div>
+    <p data-field="description" class="text-secondary" style="white-space: pre-wrap; margin: 0;">—</p>
+  </div>
+
+  {# ---- ─── DADOS DO CASO ─── (procedimento + data do fato) ----
+     "Lista de definição" feita com grid pontual rótulo/valor (sem def-list). #}
+  <div style="margin-top: var(--space-5);">
+    <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── DADOS DO CASO ───</div>
+    <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
+      <span class="mono text-tertiary">Procedimento</span>
+      <span class="mono" data-field="procedure_number">—</span>
+      <span class="mono text-tertiary">Data do fato</span>
+      <span class="mono" data-field="fact_date">—</span>
+    </div>
+  </div>
+
+  {# ---- ─── TAGS ─── ---- #}
+  <div style="margin-top: var(--space-5);">
+    <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── TAGS ───</div>
+    <p data-field="tags" class="mono text-secondary" style="margin: 0;">—</p>
+  </div>
+
+  {# ---- ─── NOTAS ─── ---- #}
+  <div style="margin-top: var(--space-5);">
+    <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── NOTAS ───</div>
+    <p data-field="notes" class="text-secondary" style="white-space: pre-wrap; margin: 0;">—</p>
+  </div>
+
+  {# ---- ─── AUDITORIA ─── (metadados de rastro; leitura) ---- #}
+  <div style="margin-top: var(--space-5); margin-bottom: var(--space-6);">
+    <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── AUDITORIA ───</div>
+    <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
+      <span class="mono text-tertiary">Criado em</span>
+      <span class="mono" data-field="created_at_full">—</span>
+      <span class="mono text-tertiary">Criado por (id)</span>
+      <span class="mono" data-field="created_by">—</span>
+      <span class="mono text-tertiary">Última atualização</span>
+      <span class="mono" data-field="updated_at">—</span>
+      <span class="mono text-tertiary">Atualizado por (id)</span>
+      <span class="mono" data-field="updated_by">—</span>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+
+{% block extra_body %}
+{# case_detail.js (8.6-b) busca o caso e popula os slots [data-field].
+   toast.js para mensagens de erro no padrão da casa (D53). #}
+<script src="/static/js/toast.js" defer></script>
+<script src="/static/js/case_detail.js" defer></script>
+{% endblock %}

@@ -28,6 +28,13 @@ rota e garantir que a injeção de data-inactivity-minutes no
 Sprint 01 / Bloco 8.4: a rota /cases foi despromovida de
 placeholder para a tela funcional (cases/list.html). É a
 ÚNICA mudança deste sub-passo neste arquivo.
+
+Sprint 01 / Bloco 8.6: adicionada a rota de detalhe
+GET /cases/{case_id:int} (cases/detail.html). Renderização
+SPA-leve: a rota só serve o esqueleto; o conteúdo é buscado
+pelo case_detail.js em GET /api/cases/{id}. O conversor :int
+no path casa com case_id: int da API e faz o FastAPI rejeitar
+ids não-numéricos com 422, sem colidir com /cases.
 """
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -251,6 +258,32 @@ async def cases_page(
         request=request,
         name="cases/list.html",
         context=_shell_context(workspace_id, "cases", "CIRCE // Casos"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Detalhe de um caso — RF-001 (visualizar). Sprint 01 / Bloco 8, Sub-passo 8.6.
+# Renderização SPA-leve (decisão (a) do 8.6): a rota serve apenas o
+# esqueleto cases/detail.html; o conteúdo é buscado pelo case_detail.js
+# em GET /api/cases/{id}. Por isso a rota NÃO consulta o banco nem precisa
+# de Session — quem valida existência do caso (404) é a API, e o JS trata.
+#
+# O conversor {case_id:int} casa com case_id: int da API (schemas/cases.py
+# + app/api/cases.py linha 86) e faz o FastAPI devolver 422 para ids não
+# numéricos, sem ambiguidade com a rota estática /cases acima.
+#
+# active_page="cases" mantém "Casos" destacado no menu; _shell_context
+# preserva a injeção de inactivity_minutes no <body> (D33).
+# ---------------------------------------------------------------------------
+@router.get("/cases/{case_id:int}", response_class=HTMLResponse)
+async def case_detail_page(
+    request: Request, case_id: int, workspace_id: str = "default"
+) -> HTMLResponse:
+    """Tela de detalhe de um caso (RF-001) — esqueleto + fetch /api/cases/{id}."""
+    return templates.TemplateResponse(
+        request=request,
+        name="cases/detail.html",
+        context=_shell_context(workspace_id, "cases", "CIRCE // Detalhe do caso"),
     )
 
 
