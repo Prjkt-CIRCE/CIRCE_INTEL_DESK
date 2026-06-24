@@ -1,0 +1,45 @@
+# CIRCE Intel Desk — normalização de fins de linha
+# Criado no fechamento do Bloco 8 (8.7). Resolve os warnings
+# "LF will be replaced by CRLF" que apareciam nos commits.
+#
+# Princípio: o repositório guarda tudo em LF; cada checkout no
+# Windows recebe o que o core.autocrlf decidir, sem ruído.
+
+# Por padrão, o Git decide o tratamento de texto automaticamente
+# e normaliza para LF no repositório.
+* text=auto eol=lf
+
+# Arquivos de código e texto — sempre LF no repositório.
+*.py    text eol=lf
+*.js    text eol=lf
+*.css   text eol=lf
+*.html  text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.txt   text eol=lf
+*.toml  text eol=lf
+*.ini   text eol=lf
+*.cfg   text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+
+# Scripts que dependem de CRLF no Windows (se houver) — força CRLF.
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binários — nunca normalizar.
+*.db     binary
+*.sqlite binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.ico    binary
+*.pdf    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
+*.zip    binary
