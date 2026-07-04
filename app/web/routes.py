@@ -14,9 +14,9 @@ e 6.4. Workspace é um conceito que só existe DEPOIS de
 autenticado — essas telas são o portão, não um cômodo.
 Decisão consciente do operador.
 
-Páginas placeholder de domínio (Casos, Pessoas, Organizações,
-Documentos, Relatórios) são apenas casca — implementação real
-de cada uma entra na sprint correspondente do roadmap.
+Páginas placeholder de domínio (Organizações, Documentos,
+Relatórios) são apenas casca — implementação real de cada uma
+entra na sprint correspondente do roadmap.
 
 Bloco 6.8: helper _shell_context centraliza a montagem do
 contexto comum a todas as rotas autenticadas (workspace_id,
@@ -35,6 +35,11 @@ SPA-leve: a rota só serve o esqueleto; o conteúdo é buscado
 pelo case_detail.js em GET /api/cases/{id}. O conversor :int
 no path casa com case_id: int da API e faz o FastAPI rejeitar
 ids não-numéricos com 422, sem colidir com /cases.
+
+Sprint 01 / Bloco 9.5: a rota /persons foi despromovida de
+placeholder para a tela funcional (persons/list.html), mesmo
+movimento do 8.4. placeholders/persons.html foi removido do
+repositório (ficou inerte, nenhuma rota aponta mais para ele).
 """
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -288,22 +293,26 @@ async def case_detail_page(
 
 
 # ---------------------------------------------------------------------------
-# Placeholders — páginas de domínio ainda não implementadas.
+# Pessoas — RF-002. Sprint 01 / Bloco 9, Sub-passo 9.5.
+# Tela funcional (despromovida de placeholder), mesmo movimento do 8.4.
+# O conteúdo dinâmico (lista, criação, edição, arquivamento) é servido
+# pela API REST /api/persons consumida pelo persons.js.
 # ---------------------------------------------------------------------------
 @router.get("/persons", response_class=HTMLResponse)
 async def persons_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Placeholder da tela de Pessoas. Implementação: Sprint 01."""
-    return _render_placeholder(
+    """Tela funcional de Pessoas (RF-002) — listagem + criação via /api/persons."""
+    return templates.TemplateResponse(
         request=request,
-        template_name="placeholders/persons.html",
-        active_page="persons",
-        page_title="CIRCE // Pessoas",
-        workspace_id=workspace_id,
+        name="persons/list.html",
+        context=_shell_context(workspace_id, "persons", "CIRCE // Pessoas"),
     )
 
 
+# ---------------------------------------------------------------------------
+# Placeholders — páginas de domínio ainda não implementadas.
+# ---------------------------------------------------------------------------
 @router.get("/organizations", response_class=HTMLResponse)
 async def organizations_page(
     request: Request, workspace_id: str = "default"

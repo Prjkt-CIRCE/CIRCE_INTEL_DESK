@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{# ============================================================
+   Tela funcional de Pessoas — RF-002
+   Sprint 01 · Bloco 9 · Sub-passo 9.5
+
+   Espelha app/web/templates/cases/list.html (Bloco 8.4/8.5), com as
+   diferenças exigidas pelo RF-002:
+     - CA-002.2: cpf normalizado no backend; exibido em fonte mono.
+     - CA-002.3: aliases (";"-separado) exibidas como badges na lista.
+     - CA-002.5: ao salvar com CPF duplicado, a API responde 409
+       estruturado (existing_person_id/name); a UI mostra TOAST de erro
+       citando o nome da pessoa existente, sem ação direta (decisão do
+       operador, Bloco 9.5 — mais simples que abrir a pessoa existente,
+       que exigiria uma tela de detalhe ainda não construída).
+     - CA-002.8: fonte mono em campos estruturados (CPF, RG); sans nos
+       de texto livre (nome, alcunhas, fonte, observações).
+
+   Escopo do formulário (decisão por analogia ao 8.5): full_name,
+   aliases, cpf, rg, source, reliability_level, notes. Os campos
+   birth_date/mother_name/father_name ficam para a tela de detalhe de
+   Pessoa (sub-passo futuro), mesmo critério usado com fact_date/tags/
+   notes do Caso no Bloco 8.
+
+   "Abrir" fica desabilitado nesta lista (tela de detalhe de Pessoa
+   ainda não existe) — mesmo padrão do cases.js antes do 8.6.
+
+   Usa exclusivamente classes canônicas do design system
+   (components.css / layout.css): btn, field, input, table, badge.
+   Zero CSS novo. JS específico carregado via extra_body
+   (toast.js + persons.js), não no shell global.
+   ============================================================ #}
+
+{% block title %}CIRCE // Pessoas{% endblock %}
+
+{% block content %}
+
+{# ---- Cabeçalho de listagem (mesmo layout de cases/list.html) ---- #}
+<div class="app-content__page-header"
+     style="display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4);">
+  <div>
+    <h1 class="app-content__page-title">
+      <span id="persons-title-label">─── PESSOAS ───</span>
+      <span id="persons-count" class="mono text-tertiary">00 REGISTROS</span> ───
+    </h1>
+    <div class="app-content__page-subtitle">RF-002 · Cadastro e qualificação de pessoas</div>
+    <div style="margin-top: var(--space-3);">
+      <button type="button" id="persons-new-btn" class="btn btn--primary">[+] NOVA PESSOA</button>
+    </div>
+  </div>
+  <div class="app-content__page-actions" style="flex-shrink: 0;">
+    <label for="persons-show-archived"
+           style="display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+      <input type="checkbox" id="persons-show-archived" />
+      <span class="field__label mono" style="margin: 0;">Mostrar arquivados</span>
+    </label>
+  </div>
+</div>
+
+{# ---- Tabela de pessoas ---- #}
+<table class="table table--zebra">
+  <thead>
+    <tr>
+      <th data-sort-key="full_name" style="cursor: pointer;">
+        Nome <span class="sort-indicator mono"></span>
+      </th>
+      <th>Alcunhas</th>
+      <th>CPF</th>
+      <th data-sort-key="status" style="cursor: pointer;">
+        Status <span class="sort-indicator mono"></span>
+      </th>
+      <th data-sort-key="created_at" style="cursor: pointer;">
+        Criado em <span class="sort-indicator mono"></span>
+      </th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody id="persons-tbody">
+    {# Preenchido dinamicamente por persons.js. #}
+  </tbody>
+</table>
+
+<div id="persons-empty" class="app-content__placeholder-message" hidden>
+  Nenhuma pessoa cadastrada ainda. Use <strong>[+] NOVA PESSOA</strong> (ou Ctrl+Alt+P) para criar a primeira.
+</div>
+
+{% endblock %}
+
+
+{% block extra_body %}
+
+{# ============================================================
+   Modal "Nova pessoa / Editar pessoa" — modo dual (mesmo padrão do
+   case-create-modal do 8.5). Vive no nível do body (extra_body).
+
+   CA-002.8: cpf e rg usam input--mono; os demais campos de texto usam
+   input comum (sans).
+   ============================================================ #}
+<div class="modal-backdrop" id="person-create-modal" data-open="false"
+     role="dialog" aria-modal="true" aria-labelledby="person-create-title">
+  <div class="card" style="width: 560px; max-width: calc(100vw - var(--space-6));">
+
+    <div class="card__header">
+      <div class="card__title" id="person-create-title">NOVA PESSOA</div>
+      <div class="card__subtitle" id="person-create-subtitle">RF-002 · Apenas o nome completo é obrigatório</div>
+    </div>
+
+    <div class="card__body">
+      <div class="field">
+        <label class="field__label field__label--required" for="person-form-name">Nome completo</label>
+        <input type="text" class="input" id="person-form-name"
+               placeholder="Ex.: José da Silva Santos" autocomplete="off" />
+        <span class="field__error" id="person-form-name-error" hidden></span>
+        <span class="field__hint" id="person-form-name-hint">Obrigatório.</span>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="person-form-aliases">Alcunhas</label>
+        <input type="text" class="input" id="person-form-aliases"
+               placeholder="Separadas por ; — Ex.: Zé; Testa" autocomplete="off" />
+        <span class="field__hint">Texto livre separado por ponto e vírgula (CA-002.3).</span>
+      </div>
+
+      <div class="showcase-grid-2">
+        <div class="field">
+          <label class="field__label" for="person-form-cpf">CPF</label>
+          <input type="text" class="input input--mono" id="person-form-cpf"
+                 placeholder="000.000.000-00 (opcional)" autocomplete="off" />
+          <span class="field__hint">Normalizado automaticamente para apenas dígitos.</span>
+        </div>
+        <div class="field">
+          <label class="field__label" for="person-form-rg">RG</label>
+          <input type="text" class="input input--mono" id="person-form-rg"
+                 placeholder="Opcional" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="showcase-grid-2">
+        <div class="field">
+          <label class="field__label" for="person-form-source">Fonte da informação</label>
+          <input type="text" class="input" id="person-form-source"
+                 placeholder="Ex.: Boletim de ocorrência 123/2026" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field__label" for="person-form-reliability">Grau de confiabilidade</label>
+          <select class="input" id="person-form-reliability">
+            <option value="pending">Pendente</option>
+            <option value="low">Baixo</option>
+            <option value="medium">Médio</option>
+            <option value="high">Alto</option>
+            <option value="validated">Validado</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="person-form-notes">Observações</label>
+        <textarea class="input" id="person-form-notes"
+                  placeholder="Observações livres (opcional)..."></textarea>
+      </div>
+    </div>
+
+    <div class="card__footer">
+      <button type="button" class="btn btn--text" data-modal-close>Cancelar</button>
+      <button type="button" class="btn btn--primary" id="person-form-save" disabled>Salvar pessoa</button>
+    </div>
+
+  </div>
+</div>
+
+{# ============================================================
+   Modal de confirmação de arquivamento — mesmo padrão do
+   case-archive-modal do 8.5.
+   ============================================================ #}
+<div class="modal-backdrop" id="person-archive-modal" data-open="false"
+     role="dialog" aria-modal="true" aria-labelledby="person-archive-title">
+  <div class="card" style="width: 480px; max-width: calc(100vw - var(--space-6));">
+
+    <div class="card__header">
+      <div class="card__title" id="person-archive-title">ARQUIVAR PESSOA</div>
+      <div class="card__subtitle">Arquivamento lógico · reversível pelo filtro "arquivados"</div>
+    </div>
+
+    <div class="card__body">
+      <p>
+        Arquivar a pessoa
+        <strong id="person-archive-name">—</strong>?
+      </p>
+      <p class="text-secondary">
+        Ela sai da lista padrão e passa a aparecer somente com o filtro
+        "Mostrar arquivados" ativo. Nenhum dado é apagado.
+      </p>
+    </div>
+
+    <div class="card__footer">
+      <button type="button" class="btn btn--text" data-archive-cancel>Cancelar</button>
+      <button type="button" class="btn btn--primary" id="person-archive-confirm">Arquivar</button>
+    </div>
+
+  </div>
+</div>
+
+<script src="/static/js/toast.js" defer></script>
+<script src="/static/js/persons.js" defer></script>
+
+{% endblock %}
