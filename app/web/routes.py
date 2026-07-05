@@ -40,6 +40,13 @@ Sprint 01 / Bloco 9.5: a rota /persons foi despromovida de
 placeholder para a tela funcional (persons/list.html), mesmo
 movimento do 8.4. placeholders/persons.html foi removido do
 repositório (ficou inerte, nenhuma rota aponta mais para ele).
+
+Sprint 01 / Bloco 9.6: adicionada a rota de detalhe
+GET /persons/{person_id:int} (persons/detail.html). Mesmo
+padrão SPA-leve do Bloco 8.6: a rota serve apenas o esqueleto;
+o conteúdo é buscado pelo person_detail.js em
+GET /api/persons/{id}. O conversor :int no path rejeita ids
+não-numéricos com 422, sem colidir com /persons. Decisão D58.
 """
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -307,6 +314,32 @@ async def persons_page(
         request=request,
         name="persons/list.html",
         context=_shell_context(workspace_id, "persons", "CIRCE // Pessoas"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Detalhe de uma pessoa — RF-002 (visualizar). Sprint 01 / Bloco 9,
+# Sub-passo 9.6. Mesmo padrão SPA-leve do Bloco 8.6 de Casos (D58).
+#
+# A rota serve apenas o esqueleto persons/detail.html; o conteúdo é
+# buscado pelo person_detail.js em GET /api/persons/{id}. A rota NÃO
+# consulta o banco — quem valida a existência (404) é a API.
+#
+# O conversor {person_id:int} faz o FastAPI rejeitar ids não-numéricos
+# com 422, sem colidir com a rota estática /persons acima.
+#
+# active_page="persons" mantém "Pessoas" destacado no menu.
+# _shell_context preserva a injeção de inactivity_minutes no <body> (D33).
+# ---------------------------------------------------------------------------
+@router.get("/persons/{person_id:int}", response_class=HTMLResponse)
+async def person_detail_page(
+    request: Request, person_id: int, workspace_id: str = "default"
+) -> HTMLResponse:
+    """Tela de detalhe de uma pessoa (RF-002) — esqueleto + fetch /api/persons/{id}."""
+    return templates.TemplateResponse(
+        request=request,
+        name="persons/detail.html",
+        context=_shell_context(workspace_id, "persons", "CIRCE // Detalhe da pessoa"),
     )
 
 

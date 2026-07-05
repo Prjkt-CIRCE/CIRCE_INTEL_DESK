@@ -14,13 +14,16 @@
        mono — sem badge dedicada (evita inventar classe CSS nova).
      - CA-002.5 (decisão do operador, 9.5): ao salvar com CPF duplicado,
        a API responde 409 com {existing_person_id, existing_person_name}.
-       A UI mostra um TOAST DE ERRO citando o nome da pessoa existente,
-       sem ação direta (não há tela de detalhe de Pessoa ainda).
+       A UI mostra um TOAST DE ERRO citando o nome da pessoa existente.
      - Atalho "Nova pessoa" nasce como Ctrl+Alt+P (não Ctrl+P), já
        aplicando a lição do Ctrl+N -> Ctrl+Alt+N do Bloco 8.6 (Ctrl+P é
        "imprimir" do navegador, mesmo problema).
-     - "Abrir" fica DESABILITADO: a tela de detalhe de Pessoa ainda não
-       existe (mesmo estado do cases.js antes do Bloco 8.6).
+
+   Sub-passo 9.6 (D58):
+     - "Abrir" HABILITADO: navega para /persons/{id} (tela de detalhe).
+     - Leitura de ?edit=id no setup(): se presente na URL ao carregar
+       a lista, aguarda o carregamento da lista e abre o modal de edição
+       para a pessoa correspondente. Espelho de D56 de Casos.
    ============================================================ */
 
 (function () {
@@ -99,7 +102,7 @@
   }
 
   // ---------- Carregar lista ----------
-  function loadPersons() {
+  function loadPersons(onLoaded) {
     var url = API_BASE
       + "?include_archived=" + (state.includeArchived ? "true" : "false")
       + "&sort_by=" + encodeURIComponent(state.sortBy)
@@ -121,6 +124,9 @@
         if (data === null) return;
         state.persons = Array.isArray(data) ? data : [];
         renderTable();
+        // Callback opcional — usado pelo setup() para abrir modal de
+        // edição via ?edit=id depois que o state está populado (D58).
+        if (typeof onLoaded === "function") onLoaded();
       })
       .catch(function (err) {
         console.error("[persons] erro ao carregar lista", err);
@@ -176,13 +182,14 @@
 
     var tdAction = document.createElement("td");
 
-    // "Abrir" desabilitado — tela de detalhe de Pessoa ainda não existe.
+    // "Abrir" HABILITADO (D58, Sub-passo 9.6): navega para /persons/{id}.
     var openBtn = document.createElement("button");
     openBtn.className = "btn btn--text";
     openBtn.type = "button";
     openBtn.textContent = "Abrir";
-    openBtn.disabled = true;
-    openBtn.title = "Detalhe da pessoa — sub-passo futuro";
+    openBtn.addEventListener("click", function () {
+      window.location.href = "/persons/" + p.id;
+    });
     tdAction.appendChild(openBtn);
 
     var editBtn = document.createElement("button");
@@ -317,7 +324,7 @@
   }
 
   // CA-002.5 (decisão do operador, 9.5): 409 -> toast citando a pessoa
-  // existente. Sem ação direta (não há tela de detalhe de Pessoa ainda).
+  // existente.
   function handleDuplicateCpf(body) {
     var info = (body && body.detail) || {};
     var nome = info.existing_person_name || "outra pessoa";
@@ -509,6 +516,27 @@
 
     updateTitleLabel();
     setupSortHeaders();
+
+    // D58 — Sub-passo 9.6: leitura de ?edit=id na URL.
+    // Se o operador navegou de /persons/{id} → "Editar" → /persons?edit={id},
+    // aguardamos o carregamento da lista e abrimos o modal com os dados
+    // da pessoa correspondente. Espelho exato de D56 de Casos.
+    var editParam = new URLSearchParams(window.location.search).get("edit");
+    if (editParam) {
+      var editId = parseInt(editParam, 10);
+      if (!isNaN(editId)) {
+        // Carrega a lista com callback: quando o state estiver populado,
+        // tenta abrir o modal. Se a pessoa não for encontrada no state
+        // (arquivada, id inválido), ignora silenciosamente — o operador
+        // ainda vê a lista sem quebrar.
+        loadPersons(function () {
+          var p = findPerson(editId);
+          if (p) openModalEdit(p);
+        });
+        return; // evita o loadPersons() final duplicado
+      }
+    }
+
     loadPersons();
   }
 
