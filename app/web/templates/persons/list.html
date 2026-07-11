@@ -16,14 +16,12 @@
      - CA-002.8: fonte mono em campos estruturados (CPF, RG); sans nos
        de texto livre (nome, alcunhas, fonte, observações).
 
-   Escopo do formulário (decisão por analogia ao 8.5): full_name,
-   aliases, cpf, rg, source, reliability_level, notes. Os campos
-   birth_date/mother_name/father_name ficam para a tela de detalhe de
-   Pessoa (sub-passo futuro), mesmo critério usado com fact_date/tags/
-   notes do Caso no Bloco 8.
+   Escopo do formulário (9.6): todos os campos editáveis do RF-002,
+   incluindo birth_date, mother_name e father_name (editáveis no modal;
+   também visíveis na tela de detalhe).
 
-   "Abrir" fica desabilitado nesta lista (tela de detalhe de Pessoa
-   ainda não existe) — mesmo padrão do cases.js antes do 8.6.
+   Sub-passo 9.6: botão "Abrir" navega para /persons/{id}; ?edit=id
+   abre o modal de edição (padrão D56, espelhando cases.js 8.6-c).
 
    Usa exclusivamente classes canônicas do design system
    (components.css / layout.css): btn, field, input, table, badge.
@@ -131,6 +129,25 @@
         <div class="field">
           <label class="field__label" for="person-form-rg">RG</label>
           <input type="text" class="input input--mono" id="person-form-rg"
+                 placeholder="Opcional" autocomplete="off" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="person-form-birth-date">Data de nascimento</label>
+        <input type="text" class="input input--mono" id="person-form-birth-date"
+               placeholder="AAAA-MM-DD (opcional)" autocomplete="off" />
+      </div>
+
+      <div class="showcase-grid-2">
+        <div class="field">
+          <label class="field__label" for="person-form-mother">Nome da mãe</label>
+          <input type="text" class="input" id="person-form-mother"
+                 placeholder="Opcional" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label class="field__label" for="person-form-father">Nome do pai</label>
+          <input type="text" class="input" id="person-form-father"
                  placeholder="Opcional" autocomplete="off" />
         </div>
       </div>
