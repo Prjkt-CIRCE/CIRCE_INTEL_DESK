@@ -1,69 +1,39 @@
 {% extends "base.html" %}
 
 {# ============================================================
-   Tela de detalhe de uma pessoa — RF-002 (visualizar)
-   Sprint 01 · Bloco 9 · Sub-passo 9.6
+   Tela de detalhe de uma pessoa — RF-002 (visualizar) + RF-003 (vínculos)
+   Sprint 01 · Bloco 9 · Sub-passo 9.6 (original)
+   Sprint 01 · Bloco 10 · Sub-passo 10.6 (seção de vínculos adicionada)
 
-   Decisões do operador (D59, D60):
-     - (a) Renderização SPA-leve: este template é apenas o ESQUELETO.
-       O conteúdo é buscado em GET /api/persons/{id} pelo person_detail.js
-       e injetado nos slots [data-field]. Mantém coerência com o padrão
-       do case_detail.js (Bloco 8.6).
-     - (b/D58) "Editar" NÃO abre modal aqui: navega para
-       /persons?edit={id} — a lista abre o modal de edição já na
-       pessoa certa. Espelho de D56 de Casos.
-     - (c) Reativar pessoa arquivada: FORA do 9.6. Mesmo padrão D48.
-       Pessoa arquivada exibe nota; sem botão de reativar.
-     - (d) Voltar: link "< PESSOAS" para /persons + atalho Esc.
+   Decisões do operador (D59, D60) — preservadas:
+     - (a) Renderização SPA-leve: esqueleto HTML, conteúdo via JS.
+     - (b/D58) "Editar" navega para /persons?edit={id}.
+     - (c) Reativar arquivada: fora do escopo (D48).
+     - (d) Voltar: link "< PESSOAS" + atalho Esc.
 
-   Caminho C (D59): estrutura completa de seções conforme mockup
-   operacional aprovado. Seções cujos dados dependem de módulos
-   futuros exibem "Nenhum registro cadastrado." — sem dado falso,
-   sem número sem lastro. Score de Ameaça (RF-023) reservado como
-   bloco visual com texto "módulo pendente".
-
-   Ordem das seções (D60 — hierarquia operacional do mockup):
-     identificação → score (RF-023) → dados pessoais →
-     sinais particulares → vínculo faccional → álbum →
-     boletins → processos → prisões → medidas → vínculos →
-     fonte → notas → auditoria.
-
-   ZERO CSS NOVO. Apenas classes canônicas já existentes:
-     app-content__page-header, app-content__page-title,
-     app-content__page-subtitle, app-content__placeholder-message,
-     card, card__body, btn, btn--text, btn--primary, badge,
-     mono, text-secondary, text-tertiary.
-   Títulos de seção em mono + text-tertiary + style pontual.
-   Style inline pontual para espaçamento — mesmo recurso de list.html.
-
-   Campos do PersonResponse (schemas/persons.py):
-     id, full_name, aliases, cpf, rg, birth_date, mother_name,
-     father_name, notes, source, reliability_level, status,
-     created_at, created_by, updated_at, updated_by.
-
-   JS específico carregado via extra_body (person_detail.js).
+   Adições do 10.6 (RF-003):
+     - Seção "─── VÍNCULOS ───" substituída por tabela dinâmica de
+       casos vinculados + modal de criação — espelho do 10.5.
+     - Modal idêntico ao de cases/detail.html: .modal-backdrop +
+       .card, data-open controlado pelo JS.
+     - Zero CSS novo.
    ============================================================ #}
 
 {% block title %}CIRCE // Detalhe da pessoa{% endblock %}
 
 {% block content %}
 
-{# ---- Navegação de volta (decisão (d)) ---- #}
 <div class="mono" style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
   <a href="/persons" class="btn btn--text" id="person-detail-back">&lt; PESSOAS</a>
   <span class="text-tertiary">[Esc]</span>
 </div>
 
-{# ============================================================
-   Estado A — CARREGANDO.
-   ============================================================ #}
+{# Estado A — CARREGANDO #}
 <div id="person-detail-loading" class="app-content__placeholder-message">
   Carregando pessoa<span class="mono">…</span>
 </div>
 
-{# ============================================================
-   Estado B — NÃO ENCONTRADO.
-   ============================================================ #}
+{# Estado B — NÃO ENCONTRADO #}
 <div id="person-detail-notfound" class="app-content__placeholder-message" hidden>
   Pessoa não encontrada. Ela pode ter sido removida ou o endereço está incorreto.
   <div style="margin-top: var(--space-3);">
@@ -71,45 +41,33 @@
   </div>
 </div>
 
-{# ============================================================
-   Estado C — CONTEÚDO.
-   ============================================================ #}
+{# Estado C — CONTEÚDO #}
 <div id="person-detail-content" hidden>
 
-  {# ---- Header: nome (sans) + badge de status ---- #}
+  {# ---- Header ---- #}
   <div class="app-content__page-header">
     <h1 class="app-content__page-title" style="display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap;">
       <span data-field="full_name">—</span>
-      <span data-field="status_badge"><!-- badge injetado pelo JS --></span>
+      <span data-field="status_badge"></span>
     </h1>
-
-    {# Strip de metadados: alcunhas + data de criação #}
     <div class="app-content__page-subtitle mono" style="display: flex; gap: var(--space-4); flex-wrap: wrap;">
       <span>alcunhas <span class="text-secondary" data-field="aliases_display">—</span></span>
       <span>criado <span class="text-secondary" data-field="created_at">—</span></span>
     </div>
-
-    {# Ações #}
     <div style="margin-top: var(--space-3);">
       <button type="button" id="person-detail-edit" class="btn btn--primary">Editar</button>
     </div>
   </div>
 
-  {# ---- Nota de pessoa arquivada (decisão (c) + D48) ---- #}
-  <div id="person-detail-archived-note" class="card" hidden
-       style="margin-top: var(--space-4);">
+  {# Nota de pessoa arquivada #}
+  <div id="person-detail-archived-note" class="card" hidden style="margin-top: var(--space-4);">
     <div class="card__body text-secondary">
       Esta pessoa está <strong>arquivada</strong>. A reativação será tratada em etapa futura —
       por ora, o arquivamento é reversível apenas pelo filtro "Mostrar arquivados" na lista.
     </div>
   </div>
 
-  {# ============================================================
-     SCORE DE AMEAÇA — RF-023 (módulo pendente)
-     Espaço reservado conforme D59. Sem número, sem barra de
-     progresso, sem estimativa. Aparência idêntica a um card
-     informativo — o operador sabe que virá, não confunde com dado.
-     ============================================================ #}
+  {# ─── SCORE DE AMEAÇA ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── SCORE DE AMEAÇA ───</div>
     <div class="card">
@@ -123,161 +81,232 @@
     </div>
   </div>
 
-  {# ============================================================
-     ─── DADOS PESSOAIS ───
-     Campos disponíveis agora: full_name, aliases, cpf, rg,
-     birth_date, mother_name, father_name.
-     ============================================================ #}
+  {# ─── DADOS PESSOAIS ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── DADOS PESSOAIS ───</div>
     <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
       <span class="mono text-tertiary">Nome completo</span>
       <span data-field="full_name_detail">—</span>
-
       <span class="mono text-tertiary">Alcunhas</span>
       <span class="mono text-secondary" data-field="aliases_detail">—</span>
-
       <span class="mono text-tertiary">CPF</span>
       <span class="mono" data-field="cpf_display">—</span>
-
       <span class="mono text-tertiary">RG</span>
       <span class="mono" data-field="rg">—</span>
-
       <span class="mono text-tertiary">Data de nascimento</span>
       <span class="mono" data-field="birth_date">—</span>
-
       <span class="mono text-tertiary">Mãe</span>
       <span data-field="mother_name">—</span>
-
       <span class="mono text-tertiary">Pai</span>
       <span data-field="father_name">—</span>
     </div>
   </div>
 
-  {# ============================================================
-     ─── SINAIS PARTICULARES ───
-     Campos não existem no banco ainda. Exibe estado vazio elegante.
-     Preenchido quando bloco futuro adicionar height, weight,
-     skin_color, hair, tattoos, scars à tabela persons.
-     ============================================================ #}
+  {# ─── SINAIS PARTICULARES ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── SINAIS PARTICULARES ───</div>
     <p class="text-secondary" style="margin: 0;">Nenhum dado cadastrado nesta versão.</p>
   </div>
 
-  {# ============================================================
-     ─── VÍNCULO FACCIONAL ───
-     Preenchido pela Sprint 01-B (RF-005).
-     ============================================================ #}
+  {# ─── VÍNCULO FACCIONAL ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── VÍNCULO FACCIONAL ───</div>
     <p class="text-secondary" style="margin: 0;">Nenhum vínculo cadastrado.</p>
   </div>
 
-  {# ============================================================
-     ─── ÁLBUM FOTOGRÁFICO ───
-     Preenchido pela Sprint 08 (RF-015).
-     ============================================================ #}
+  {# ─── ÁLBUM FOTOGRÁFICO ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── ÁLBUM FOTOGRÁFICO ───</div>
     <p class="text-secondary" style="margin: 0;">Nenhum registro fotográfico cadastrado.</p>
   </div>
 
-  {# ============================================================
-     ─── BOLETINS DE OCORRÊNCIA ───
-     Preenchido pela Sprint 03 (RF-009).
-     ============================================================ #}
+  {# ─── BOLETINS DE OCORRÊNCIA ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── BOLETINS DE OCORRÊNCIA ───</div>
     <p class="text-secondary" style="margin: 0;">Nenhum boletim cadastrado.</p>
   </div>
 
-  {# ============================================================
-     ─── PROCESSOS CRIMINAIS ───
-     Fora do MVP-0. Preenchido em sprint futura.
-     ============================================================ #}
+  {# ─── PROCESSOS CRIMINAIS ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── PROCESSOS CRIMINAIS ───</div>
     <p class="text-secondary" style="margin: 0;">Nenhum processo cadastrado.</p>
   </div>
 
-  {# ============================================================
-     ─── PRISÕES & OPERAÇÕES POLICIAIS ───
-     Fora do MVP-0. Preenchido em sprint futura.
-     ============================================================ #}
+  {# ─── PRISÕES & OPERAÇÕES POLICIAIS ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── PRISÕES & OPERAÇÕES POLICIAIS ───</div>
     <p class="text-secondary" style="margin: 0;">Nenhum registro cadastrado.</p>
   </div>
 
-  {# ============================================================
-     ─── MEDIDAS & RESTRIÇÕES VIGENTES ───
-     Fora do MVP-0. Preenchido em sprint futura.
-     ============================================================ #}
+  {# ─── MEDIDAS & RESTRIÇÕES VIGENTES ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── MEDIDAS & RESTRIÇÕES VIGENTES ───</div>
     <p class="text-secondary" style="margin: 0;">Nenhum registro cadastrado.</p>
   </div>
 
-  {# ============================================================
-     ─── VÍNCULOS ───
-     Vínculos com casos: RF-003, Sprint 01 (bloco posterior).
-     Vínculos com organizações: RF-005, Sprint 01-B.
-     ============================================================ #}
+  {# ================================================================
+     ─── VÍNCULOS ─── (RF-003, Bloco 10.6)
+
+     Substituição da placeholder estática por tabela dinâmica.
+     Espelho do 10.5 (cases/detail.html), mas o eixo é invertido:
+     aqui listamos CASOS vinculados a esta pessoa.
+     ================================================================ #}
   <div style="margin-top: var(--space-5);">
-    <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── VÍNCULOS ───</div>
-    <p class="text-secondary" style="margin: 0;">Nenhum vínculo cadastrado.</p>
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+      <div class="mono text-tertiary">─── VÍNCULOS ───</div>
+      <button type="button" id="btn-vincular-caso" class="btn btn--primary"
+              style="font-size: 0.8rem; padding: 0.25rem 0.75rem;">
+        + Vincular a caso
+      </button>
+    </div>
+
+    {# Carregando vínculos #}
+    <div id="person-links-loading" class="text-secondary mono" style="font-size: 0.85rem;">
+      Carregando vínculos<span class="mono">…</span>
+    </div>
+
+    {# Estado vazio #}
+    <div id="person-links-empty" class="text-tertiary mono" style="font-size: 0.85rem;" hidden>
+      Esta pessoa não está vinculada a nenhum caso.
+    </div>
+
+    {# Tabela de vínculos (preenchida pelo JS) #}
+    <div id="person-links-table-wrap" hidden style="overflow-x: auto;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
+        <thead>
+          <tr class="mono text-tertiary" style="border-bottom: 1px solid var(--border-subtle); text-align: left;">
+            <th style="padding: var(--space-2) var(--space-3) var(--space-2) 0; font-weight: 500;">Caso</th>
+            <th style="padding: var(--space-2) var(--space-3); font-weight: 500;">Papel</th>
+            <th style="padding: var(--space-2) var(--space-3); font-weight: 500;">Confiab.</th>
+            <th style="padding: var(--space-2) var(--space-3); font-weight: 500;">Fonte</th>
+            <th style="padding: var(--space-2) 0 var(--space-2) var(--space-3); font-weight: 500;"></th>
+          </tr>
+        </thead>
+        <tbody id="person-links-tbody">
+          {# Linhas injetadas pelo person_detail.js #}
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  {# ============================================================
-     ─── FONTE ───
-     Campos disponíveis: source, reliability_level.
-     ============================================================ #}
+  {# ─── FONTE ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── FONTE ───</div>
     <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
       <span class="mono text-tertiary">Fonte</span>
       <span class="text-secondary" data-field="source">—</span>
-
       <span class="mono text-tertiary">Confiabilidade</span>
       <span class="mono" data-field="reliability_level">—</span>
     </div>
   </div>
 
-  {# ============================================================
-     ─── NOTAS ───
-     ============================================================ #}
+  {# ─── NOTAS ─── #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── NOTAS ───</div>
     <p data-field="notes" class="text-secondary" style="white-space: pre-wrap; margin: 0;">—</p>
   </div>
 
-  {# ============================================================
-     ─── AUDITORIA ───
-     ============================================================ #}
+  {# ─── AUDITORIA ─── #}
   <div style="margin-top: var(--space-5); margin-bottom: var(--space-6);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── AUDITORIA ───</div>
     <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
       <span class="mono text-tertiary">Criado em</span>
       <span class="mono" data-field="created_at_full">—</span>
-
       <span class="mono text-tertiary">Criado por (id)</span>
       <span class="mono" data-field="created_by">—</span>
-
       <span class="mono text-tertiary">Última atualização</span>
       <span class="mono" data-field="updated_at">—</span>
-
       <span class="mono text-tertiary">Atualizado por (id)</span>
       <span class="mono" data-field="updated_by">—</span>
     </div>
   </div>
 
-</div>
+</div>{# /person-detail-content #}
 
 {% endblock %}
 
 
 {% block extra_body %}
+
+{# ================================================================
+   MODAL — Vincular a caso (RF-003, CA-003.2, D-B10-01)
+
+   Espelho exato do modal de cases/detail.html (Bloco 10.5).
+   Aqui o <select> carrega CASOS (não pessoas).
+   Padrão: .modal-backdrop[data-open] + .card
+   ================================================================ #}
+<div class="modal-backdrop" id="modal-vincular-caso-backdrop" data-open="false"
+     role="dialog" aria-modal="true" aria-labelledby="modal-vincular-caso-title">
+  <div class="card" style="width: 560px; max-width: calc(100vw - var(--space-6));">
+
+    <div class="card__header">
+      <div class="card__title" id="modal-vincular-caso-title">VINCULAR PESSOA A CASO</div>
+      <div class="card__subtitle">RF-003 · Registro de vínculo com auditoria</div>
+    </div>
+
+    <div class="card__body">
+
+      {# Caso — D-B10-01: <select> no MVP-0 #}
+      <div class="field">
+        <label class="field__label field__label--required" for="vc-case-select">Caso</label>
+        <select id="vc-case-select" class="input">
+          <option value="">— selecione —</option>
+        </select>
+        <span class="field__hint" id="vc-case-hint" hidden>Carregando casos…</span>
+      </div>
+
+      {# Papel (role_in_case) — CA-003.3 #}
+      <div class="field">
+        <label class="field__label field__label--required" for="vc-role-select">Tipo de participação</label>
+        <select id="vc-role-select" class="input">
+          <option value="">— selecione —</option>
+          <option value="suspeito">Suspeito</option>
+          <option value="investigado">Investigado</option>
+          <option value="vitima">Vítima</option>
+          <option value="testemunha">Testemunha</option>
+          <option value="envolvido">Envolvido</option>
+          <option value="interlocutor">Interlocutor</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+
+      {# Fonte — CA-003.4 #}
+      <div class="field">
+        <label class="field__label field__label--required" for="vc-source-input">Fonte da informação</label>
+        <input type="text" id="vc-source-input" class="input"
+               placeholder="ex.: BO 2026/001, relatório de inteligência…" autocomplete="off">
+      </div>
+
+      {# Confiabilidade — CA-003.5 #}
+      <div class="field">
+        <label class="field__label field__label--required" for="vc-reliability-select">Grau de confiabilidade</label>
+        <select id="vc-reliability-select" class="input">
+          <option value="pending">Pendente</option>
+          <option value="low">Baixo</option>
+          <option value="medium">Médio</option>
+          <option value="high">Alto</option>
+          <option value="validated">Validado</option>
+        </select>
+      </div>
+
+      {# Notas (opcional) #}
+      <div class="field">
+        <label class="field__label" for="vc-notes-input">Observações <span class="text-tertiary">(opcional)</span></label>
+        <textarea id="vc-notes-input" class="input"
+                  placeholder="Informações adicionais sobre este vínculo…"></textarea>
+      </div>
+
+    </div>{# /card__body #}
+
+    <div class="card__footer">
+      <button type="button" class="btn btn--text" id="modal-vincular-caso-cancel">Cancelar</button>
+      <button type="button" class="btn btn--primary" id="modal-vincular-caso-confirmar">Vincular</button>
+    </div>
+
+  </div>{# /card #}
+</div>{# /modal-backdrop #}
+
 <script src="/static/js/toast.js" defer></script>
 <script src="/static/js/person_detail.js" defer></script>
+
 {% endblock %}

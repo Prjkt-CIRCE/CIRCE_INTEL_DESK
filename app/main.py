@@ -10,6 +10,8 @@ Sprint 01 — Bloco 5 (5.8): middleware auth_guard protege todas as rotas
             exceto as exceções públicas (ver app/web/middleware.py).
 Sprint 01 — Bloco 9 (9.4): registrado o router de Pessoas (RF-002),
             espelhando o registro do router de Casos do Bloco 8.3.
+Sprint 01 — Bloco 10 (10.4): registrado o router de Vínculos (RF-003),
+            servindo /api/links/person-case (D-B10-04).
 
 Endpoints de domínio (casos, pessoas, organizações) entram a partir da
 Sprint 01.
@@ -28,6 +30,7 @@ from app.web.middleware import auth_guard
 from app.api.auth import router as auth_router
 from app.api.cases import router as cases_router
 from app.api.persons import router as persons_router
+from app.api.links import router as links_router
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +102,7 @@ app.include_router(web_router)
 app.include_router(auth_router)
 app.include_router(cases_router)
 app.include_router(persons_router)
+app.include_router(links_router)
 
 
 # ---------------------------------------------------------------------------
