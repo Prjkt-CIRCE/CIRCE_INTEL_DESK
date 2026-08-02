@@ -1,14 +1,14 @@
 """
-CIRCE Intel Desk — Endpoints REST de Vínculos.
+CIRCE Intel Desk â€” Endpoints REST de VÃ­nculos.
 
 RF-003: /api/links/person-case  (Bloco 10)
 RF-005: /api/links/person-org   (Sprint 01-B, B6)
 
-Arquitetura (D-B10-04): router único /api/links com sub-prefixos por tipo.
-Autenticação: protegidas pelo auth_guard (RF-021). user_id via D30.
+Arquitetura (D-B10-04): router Ãºnico /api/links com sub-prefixos por tipo.
+AutenticaÃ§Ã£o: protegidas pelo auth_guard (RF-021). user_id via D30.
 
-Sprint 01 — Bloco 10, Sub-passo 10.4.
-Sprint 01-B — Sub-passo B6 (RF-005 person-org).
+Sprint 01 â€” Bloco 10, Sub-passo 10.4.
+Sprint 01-B â€” Sub-passo B6 (RF-005 person-org).
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ def _current_user_id(request: Request) -> int:
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Operador não autenticado.",
+            detail="Operador nÃ£o autenticado.",
         )
     return user_id
 
@@ -179,7 +179,7 @@ def _enrich_person_org_links(
 
 
 # ---------------------------------------------------------------------------
-# Vínculo Pessoa ↔ Caso (RF-003)
+# VÃ­nculo Pessoa â†” Caso (RF-003)
 # ---------------------------------------------------------------------------
 
 @router.get("/person-case", response_model=list[PersonCaseLinkResponse])
@@ -210,10 +210,10 @@ def create_person_case_link(
     user_id = _current_user_id(request)
     caso = db.get(Case, data.case_id)
     if caso is None:
-        raise HTTPException(status_code=404, detail=f"Caso {data.case_id} não encontrado.")
+        raise HTTPException(status_code=404, detail=f"Caso {data.case_id} nÃ£o encontrado.")
     pessoa = db.get(Person, data.person_id)
     if pessoa is None:
-        raise HTTPException(status_code=404, detail=f"Pessoa {data.person_id} não encontrada.")
+        raise HTTPException(status_code=404, detail=f"Pessoa {data.person_id} nÃ£o encontrada.")
     try:
         link = link_service.create_link(
             db, case_id=data.case_id, person_id=data.person_id,
@@ -223,12 +223,12 @@ def create_person_case_link(
     except DuplicateLinkError as exc:
         raise HTTPException(status_code=409, detail={
             "error": "vinculo_duplicado",
-            "message": f"Já existe vínculo ativo com o papel {exc.role_in_case!r} entre esta pessoa e este caso.",
+            "message": f"JÃ¡ existe vÃ­nculo ativo com o papel {exc.role_in_case!r} entre esta pessoa e este caso.",
             "existing_link_id": exc.existing_link_id,
         }) from exc
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail={"error": "vinculo_duplicado", "message": "Vínculo duplicado."})
+        raise HTTPException(status_code=409, detail={"error": "vinculo_duplicado", "message": "VÃ­nculo duplicado."})
     return _enrich_links(db, [link])[0]
 
 
@@ -239,12 +239,12 @@ def remove_person_case_link(
     user_id = _current_user_id(request)
     link = link_service.remove_link(db, link_id=link_id, user_id=user_id)
     if link is None:
-        raise HTTPException(status_code=404, detail=f"Vínculo {link_id} não encontrado.")
+        raise HTTPException(status_code=404, detail=f"VÃ­nculo {link_id} nÃ£o encontrado.")
     return _enrich_links(db, [link])[0]
 
 
 # ---------------------------------------------------------------------------
-# Vínculo Pessoa ↔ Organização (RF-005) — Sprint 01-B, B6
+# VÃ­nculo Pessoa â†” OrganizaÃ§Ã£o (RF-005) â€” Sprint 01-B, B6
 # ---------------------------------------------------------------------------
 
 @router.get("/person-org", response_model=list[PersonOrgLinkResponse])
@@ -254,7 +254,7 @@ def list_person_org_links(
     person_id: Optional[int] = None,
     db: Session = Depends(get_session),
 ) -> list[PersonOrgLinkResponse]:
-    """Lista vínculos ativos — filtrado por organização OU por pessoa."""
+    """Lista vÃ­nculos ativos â€” filtrado por organizaÃ§Ã£o OU por pessoa."""
     _current_user_id(request)
     if org_id is None and person_id is None:
         raise HTTPException(status_code=400, detail="Informe org_id ou person_id.")
@@ -273,14 +273,14 @@ def create_person_org_link(
     data: PersonOrgLinkCreate,
     db: Session = Depends(get_session),
 ) -> PersonOrgLinkResponse:
-    """Cria vínculo pessoa↔organização (CA-005.3–CA-005.9)."""
+    """Cria vÃ­nculo pessoaâ†”organizaÃ§Ã£o (CA-005.3â€“CA-005.9)."""
     user_id = _current_user_id(request)
     org = db.get(Organization, data.org_id)
     if org is None:
-        raise HTTPException(status_code=404, detail=f"Organização {data.org_id} não encontrada.")
+        raise HTTPException(status_code=404, detail=f"OrganizaÃ§Ã£o {data.org_id} nÃ£o encontrada.")
     pessoa = db.get(Person, data.person_id)
     if pessoa is None:
-        raise HTTPException(status_code=404, detail=f"Pessoa {data.person_id} não encontrada.")
+        raise HTTPException(status_code=404, detail=f"Pessoa {data.person_id} nÃ£o encontrada.")
     try:
         link = person_org_link_service.create_link(
             db, person_id=data.person_id, org_id=data.org_id,
@@ -292,12 +292,12 @@ def create_person_org_link(
     except DuplicatePersonOrgLinkError as exc:
         raise HTTPException(status_code=409, detail={
             "error": "vinculo_duplicado",
-            "message": f"Já existe vínculo ativo com o tipo {exc.link_type!r} entre esta pessoa e esta organização.",
+            "message": f"JÃ¡ existe vÃ­nculo ativo com o tipo {exc.link_type!r} entre esta pessoa e esta organizaÃ§Ã£o.",
             "existing_link_id": exc.existing_link_id,
         }) from exc
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail={"error": "vinculo_duplicado", "message": "Vínculo duplicado."})
+        raise HTTPException(status_code=409, detail={"error": "vinculo_duplicado", "message": "VÃ­nculo duplicado."})
     return _enrich_person_org_links(db, [link])[0]
 
 
@@ -305,9 +305,123 @@ def create_person_org_link(
 def remove_person_org_link(
     request: Request, link_id: int, db: Session = Depends(get_session),
 ) -> PersonOrgLinkResponse:
-    """Remove vínculo pessoa↔organização por exclusão lógica."""
+    """Remove vÃ­nculo pessoaâ†”organizaÃ§Ã£o por exclusÃ£o lÃ³gica."""
     user_id = _current_user_id(request)
     link = person_org_link_service.remove_link(db, link_id=link_id, user_id=user_id)
     if link is None:
-        raise HTTPException(status_code=404, detail=f"Vínculo {link_id} não encontrado.")
+        raise HTTPException(status_code=404, detail=f"VÃ­nculo {link_id} nÃ£o encontrado.")
     return _enrich_person_org_links(db, [link])[0]
+
+# ---------------------------------------------------------------------------
+# Vínculo Organização ↔ Organização (RF-006) — Sprint 01-B, B7
+# ---------------------------------------------------------------------------
+
+class OrgOrgLinkCreate(BaseModel):
+    org_a_id: int
+    org_b_id: int
+    relation_type: str
+    source: str
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+    reliability_level: str = "pending"
+    notes: Optional[str] = None
+
+
+class OrgOrgLinkResponse(BaseModel):
+    id: int
+    org_a_id: int
+    org_b_id: int
+    relation_type: str
+    period_start: Optional[str]
+    period_end: Optional[str]
+    source: Optional[str]
+    reliability_level: str
+    notes: Optional[str]
+    active: int
+    created_at: str
+    created_by: Optional[int]
+    org_a_name: Optional[str] = None
+    org_b_name: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+def _enrich_org_org_links(
+    db: Session,
+    links: list,
+) -> list[OrgOrgLinkResponse]:
+    if not links:
+        return []
+    org_ids = set()
+    for lk in links:
+        org_ids.add(lk.org_a_id)
+        org_ids.add(lk.org_b_id)
+    orgs_map: dict[int, str] = {}
+    for oid, oname in db.execute(
+        select(Organization.id, Organization.name).where(Organization.id.in_(org_ids))
+    ).fetchall():
+        orgs_map[oid] = oname
+    result = []
+    for lk in links:
+        result.append(OrgOrgLinkResponse(
+            id=lk.id, org_a_id=lk.org_a_id, org_b_id=lk.org_b_id,
+            relation_type=lk.relation_type, period_start=lk.period_start,
+            period_end=lk.period_end, source=lk.source,
+            reliability_level=lk.reliability_level, notes=lk.notes,
+            active=lk.active, created_at=lk.created_at, created_by=lk.created_by,
+            org_a_name=orgs_map.get(lk.org_a_id),
+            org_b_name=orgs_map.get(lk.org_b_id),
+        ))
+    return result
+
+
+@router.get("/org-org", response_model=list[OrgOrgLinkResponse])
+def list_org_org_links(
+    request: Request,
+    org_id: int,
+    db: Session = Depends(get_session),
+) -> list[OrgOrgLinkResponse]:
+    _current_user_id(request)
+    from app.services import org_org_link_service
+    links = org_org_link_service.list_links_by_org(db, org_id)
+    return _enrich_org_org_links(db, links)
+
+
+@router.post("/org-org", response_model=OrgOrgLinkResponse, status_code=201)
+def create_org_org_link(
+    request: Request,
+    data: OrgOrgLinkCreate,
+    db: Session = Depends(get_session),
+) -> OrgOrgLinkResponse:
+    user_id = _current_user_id(request)
+    from app.services import org_org_link_service
+    from app.services.org_org_link_service import SameOrgError
+    org_a = db.get(Organization, data.org_a_id)
+    if org_a is None:
+        raise HTTPException(status_code=404, detail=f"Organização {data.org_a_id} não encontrada.")
+    org_b = db.get(Organization, data.org_b_id)
+    if org_b is None:
+        raise HTTPException(status_code=404, detail=f"Organização {data.org_b_id} não encontrada.")
+    try:
+        link = org_org_link_service.create_link(
+            db, org_a_id=data.org_a_id, org_b_id=data.org_b_id,
+            relation_type=data.relation_type, source=data.source,
+            user_id=user_id, period_start=data.period_start,
+            period_end=data.period_end, reliability_level=data.reliability_level,
+            notes=data.notes,
+        )
+    except SameOrgError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return _enrich_org_org_links(db, [link])[0]
+
+
+@router.delete("/org-org/{link_id}", response_model=OrgOrgLinkResponse)
+def remove_org_org_link(
+    request: Request, link_id: int, db: Session = Depends(get_session),
+) -> OrgOrgLinkResponse:
+    user_id = _current_user_id(request)
+    from app.services import org_org_link_service
+    link = org_org_link_service.remove_link(db, link_id=link_id, user_id=user_id)
+    if link is None:
+        raise HTTPException(status_code=404, detail=f"Vínculo {link_id} não encontrado.")
+    return _enrich_org_org_links(db, [link])[0]
