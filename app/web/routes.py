@@ -5,7 +5,7 @@ Todas as funções de rota recebem `workspace_id` como parâmetro,
 mesmo que na Sprint 0.5 apenas o workspace 'default' seja
 exposto. Isso é preparação para ADR-010 (Workspaces nomeados
 por caso ativo, status: Proposed em 2026-05-03), de forma
-que a promoção da ADR para Accepted nas sprints 03–05 não
+que a promoção da ADR para Accepted nas sprints 03-05 não
 exija refatoração da camada de roteamento.
 
 Exceção a esse padrão: as rotas de autenticação (GET /setup,
@@ -47,6 +47,12 @@ padrão SPA-leve do Bloco 8.6: a rota serve apenas o esqueleto;
 o conteúdo é buscado pelo person_detail.js em
 GET /api/persons/{id}. O conversor :int no path rejeita ids
 não-numéricos com 422, sem colidir com /persons. Decisão D58.
+
+NOTA (Python 3.13 + SQLAlchemy 2.0.36):
+  log_action em /lock usa manage_transaction=False — a sessão
+  já tem transação implícita aberta pelo SQLAlchemy (autocommit=False).
+  BEGIN IMMEDIATE dentro de transação aberta causa OperationalError
+  no SQLite. Corrigido no Bloco 11.
 """
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -59,8 +65,6 @@ from app.api.auth import _operator_exists
 from app.database.session import get_session
 from app.services import settings_service
 
-# Diretório de templates relativo a este arquivo:
-# app/web/routes.py -> app/web/templates/
 TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
@@ -75,22 +79,6 @@ def _shell_context(
     active_page: str | None,
     page_title: str,
 ) -> dict:
-    """
-    Monta o dict de contexto comum às rotas que renderizam a shell
-    autenticada (base.html). Centraliza a leitura de configurações
-    operacionais (inactivity_lock_minutes) para garantir consistência
-    entre todas as telas.
-
-    Por que centralizar: o template base.html injeta o valor de
-    inactivity_minutes em data-inactivity-minutes do <body>, que é
-    lido pelo inactivity_lock.js. Se uma rota nova esquecer de
-    passar inactivity_minutes, o JS lê NaN e desativa o timer (fail-
-    safe da D33), mas isso é falha silenciosa. Helper único garante
-    que todas as rotas paguem o mesmo preço de inclusão.
-
-    inactivity_minutes pode ser 0 (D33: "nunca bloquear"). O JS
-    trata 0 como flag de desligado.
-    """
     return {
         "workspace_id": workspace_id,
         "active_page": active_page,
@@ -103,7 +91,6 @@ def _shell_context(
 
 # ---------------------------------------------------------------------------
 # Helper interno para renderizar páginas placeholder.
-# Reduz repetição entre as rotas placeholder restantes.
 # ---------------------------------------------------------------------------
 def _render_placeholder(
     request: Request,
@@ -124,14 +111,6 @@ def _render_placeholder(
 # ---------------------------------------------------------------------------
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request, workspace_id: str = "default") -> HTMLResponse:
-    """
-    Página raiz do shell.
-
-    Na Sprint 0.5 mostra apenas a casca do design system.
-    A proteção por autenticação (redirecionar não-autenticado para
-    /login ou /setup) é feita pelo middleware do Bloco 5.8 — esta
-    função não precisa ser alterada para isso.
-    """
     return templates.TemplateResponse(
         request=request,
         name="base.html",
@@ -141,22 +120,12 @@ async def home(request: Request, workspace_id: str = "default") -> HTMLResponse:
 
 # ---------------------------------------------------------------------------
 # Rotas de autenticação (HTML) — RF-021, Sprint 01 / Blocos 5.6 e 6.4.
-# Fora do padrão workspace_id por decisão consciente (ver docstring
-# do módulo). O processamento dos formulários (POST) está em
-# app/api/auth.py — estas rotas apenas SERVEM as páginas.
 # ---------------------------------------------------------------------------
 @router.get("/setup", response_class=HTMLResponse)
 async def setup_page(
     request: Request,
     db: Session = Depends(get_session),
 ):
-    """
-    Tela de cadastro do operador inicial (CA-021.1).
-
-    Só existe na primeira execução: se já há ao menos um operador
-    cadastrado, esta rota redireciona para /login — a tela de setup
-    deixa de existir funcionalmente.
-    """
     if _operator_exists(db):
         return RedirectResponse(url="/login", status_code=303)
 
@@ -178,23 +147,6 @@ async def login_page(
     secs: int | None = None,
     next: str | None = None,
 ) -> HTMLResponse:
-    """
-    Tela de login.
-
-    Querystring suportada:
-    - ?error=1   : exibe mensagem genérica de falha (CA-021.4).
-    - ?blocked=1 : exibe mensagem de bloqueio por força bruta (CA-021.5,
-                   D34). Acompanhado de ?secs=N indicando segundos
-                   restantes.
-    - ?next=<url>: para onde redirecionar após login bem-sucedido.
-                   Usado pela tela /lock para preservar estado
-                   (CA-021.7). O POST /login NÃO consome isto ainda
-                   na Sprint 01 — é apenas exibido no form como
-                   hidden field para iteração futura (Bloco 11+).
-
-    A rota não conhece as mensagens em si — só sinaliza ao template
-    se deve ou não exibi-las.
-    """
     return templates.TemplateResponse(
         request=request,
         name="auth/login.html",
@@ -217,12 +169,8 @@ async def lock_page(
     """
     Tela de bloqueio (CA-021.7, CA-021.8, CA-021.9).
 
-    Registra o evento de bloqueio no audit log (D39, D40, D41):
-    - ?reason=auto   → action="lock_inactivity"
-    - ?reason=manual → action="lock_manual"
-    - sem querystring → action="lock_manual" (default seguro)
-
-    user_id vem de request.state.user_id (middleware Bloco 5.8).
+    log_action usa manage_transaction=False — a sessão já tem transação
+    implícita aberta pelo SQLAlchemy (autocommit=False). Corrigido no Bloco 11.
     """
     from urllib.parse import quote
     from app.services.audit_service import log_action
@@ -239,6 +187,7 @@ async def lock_page(
         action=action,
         user_id=user_id,
         description=f"Tela de bloqueio acionada (reason={reason!r}).",
+        manage_transaction=False,
     )
     db.commit()
 
@@ -256,16 +205,11 @@ async def lock_page(
 
 # ---------------------------------------------------------------------------
 # Casos — RF-001. Sprint 01 / Bloco 8, Sub-passo 8.4.
-# Tela funcional (despromovida de placeholder). O conteúdo dinâmico
-# (lista, criação) é servido pela API REST /api/cases consumida pelo
-# cases.js. Usa _shell_context (NÃO _render_placeholder) para preservar
-# a injeção de inactivity_minutes no <body> (D33).
 # ---------------------------------------------------------------------------
 @router.get("/cases", response_class=HTMLResponse)
 async def cases_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Tela funcional de Casos (RF-001) — listagem + criação via /api/cases."""
     return templates.TemplateResponse(
         request=request,
         name="cases/list.html",
@@ -273,25 +217,10 @@ async def cases_page(
     )
 
 
-# ---------------------------------------------------------------------------
-# Detalhe de um caso — RF-001 (visualizar). Sprint 01 / Bloco 8, Sub-passo 8.6.
-# Renderização SPA-leve (decisão (a) do 8.6): a rota serve apenas o
-# esqueleto cases/detail.html; o conteúdo é buscado pelo case_detail.js
-# em GET /api/cases/{id}. Por isso a rota NÃO consulta o banco nem precisa
-# de Session — quem valida existência do caso (404) é a API, e o JS trata.
-#
-# O conversor {case_id:int} casa com case_id: int da API (schemas/cases.py
-# + app/api/cases.py linha 86) e faz o FastAPI devolver 422 para ids não
-# numéricos, sem ambiguidade com a rota estática /cases acima.
-#
-# active_page="cases" mantém "Casos" destacado no menu; _shell_context
-# preserva a injeção de inactivity_minutes no <body> (D33).
-# ---------------------------------------------------------------------------
 @router.get("/cases/{case_id:int}", response_class=HTMLResponse)
 async def case_detail_page(
     request: Request, case_id: int, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Tela de detalhe de um caso (RF-001) — esqueleto + fetch /api/cases/{id}."""
     return templates.TemplateResponse(
         request=request,
         name="cases/detail.html",
@@ -301,15 +230,11 @@ async def case_detail_page(
 
 # ---------------------------------------------------------------------------
 # Pessoas — RF-002. Sprint 01 / Bloco 9, Sub-passo 9.5.
-# Tela funcional (despromovida de placeholder), mesmo movimento do 8.4.
-# O conteúdo dinâmico (lista, criação, edição, arquivamento) é servido
-# pela API REST /api/persons consumida pelo persons.js.
 # ---------------------------------------------------------------------------
 @router.get("/persons", response_class=HTMLResponse)
 async def persons_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Tela funcional de Pessoas (RF-002) — listagem + criação via /api/persons."""
     return templates.TemplateResponse(
         request=request,
         name="persons/list.html",
@@ -317,25 +242,10 @@ async def persons_page(
     )
 
 
-# ---------------------------------------------------------------------------
-# Detalhe de uma pessoa — RF-002 (visualizar). Sprint 01 / Bloco 9,
-# Sub-passo 9.6. Mesmo padrão SPA-leve do Bloco 8.6 de Casos (D58).
-#
-# A rota serve apenas o esqueleto persons/detail.html; o conteúdo é
-# buscado pelo person_detail.js em GET /api/persons/{id}. A rota NÃO
-# consulta o banco — quem valida a existência (404) é a API.
-#
-# O conversor {person_id:int} faz o FastAPI rejeitar ids não-numéricos
-# com 422, sem colidir com a rota estática /persons acima.
-#
-# active_page="persons" mantém "Pessoas" destacado no menu.
-# _shell_context preserva a injeção de inactivity_minutes no <body> (D33).
-# ---------------------------------------------------------------------------
 @router.get("/persons/{person_id:int}", response_class=HTMLResponse)
 async def person_detail_page(
     request: Request, person_id: int, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Tela de detalhe de uma pessoa (RF-002) — esqueleto + fetch /api/persons/{id}."""
     return templates.TemplateResponse(
         request=request,
         name="persons/detail.html",
@@ -350,7 +260,6 @@ async def person_detail_page(
 async def organizations_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Placeholder da tela de Organizações Criminosas. Implementação: Sprint 01-B."""
     return _render_placeholder(
         request=request,
         template_name="placeholders/organizations.html",
@@ -364,7 +273,6 @@ async def organizations_page(
 async def documents_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Placeholder da tela de Documentos. Implementação: Sprint 02."""
     return _render_placeholder(
         request=request,
         template_name="placeholders/documents.html",
@@ -378,7 +286,6 @@ async def documents_page(
 async def reports_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Placeholder da tela de Relatórios. Implementação: Sprint 03."""
     return _render_placeholder(
         request=request,
         template_name="placeholders/reports.html",
@@ -390,8 +297,6 @@ async def reports_page(
 
 # ---------------------------------------------------------------------------
 # Página de desenvolvimento — showcase de componentes.
-# Não exposta no menu. Usada para validação visual e regressão.
-# Critério de aceite CA-0.5.6.
 # ---------------------------------------------------------------------------
 @router.get("/dev/components", response_class=HTMLResponse)
 async def dev_components(

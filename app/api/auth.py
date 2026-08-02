@@ -15,6 +15,14 @@ CA-021.4: falha de login devolve mensagem genérica, sem revelar a causa.
 CA-021.5 (Bloco 6): força bruta mitigada via bruteforce_service.
 CA-021.6 (Bloco 6): TTL da sessão lido de settings_service ('session_hours').
 CA-021.9 (Bloco 7): login, falha, logout e bloqueios são logados via audit_service.
+
+NOTA (Python 3.13 + SQLAlchemy 2.0.36):
+  O SQLAlchemy com autocommit=False abre transação implícita assim que
+  qualquer operação toca a sessão. log_action com manage_transaction=True
+  tentaria executar BEGIN IMMEDIATE sobre transação já aberta, causando
+  OperationalError. Todas as chamadas a log_action neste módulo usam
+  manage_transaction=False — a transação já está aberta pelo SQLAlchemy.
+  O chamador é responsável pelo commit/rollback (D47).
 """
 from datetime import datetime, timezone
 
@@ -129,19 +137,18 @@ def post_setup(
     )
     db.add(user)
     try:
-        db.flush()  # envia o INSERT, popula user.id, mas não faz commit ainda
+        db.flush()
     except IntegrityError:
         db.rollback()
         return RedirectResponse(url="/setup?error=1", status_code=303)
 
-    # Audit log na mesma transação (ADR-003 §2.4).
-    # Se falhar aqui, o rollback desfaz também a criação do usuário.
     log_action(
         db,
         action="setup",
         user_id=user.id,
         user_display_name=user.display_name,
         description=f"Operador inicial '{user.username}' cadastrado.",
+        manage_transaction=False,
     )
 
     db.commit()
@@ -169,24 +176,24 @@ def post_login(
     - login_failed  : credencial inválida ou conta desativada.
     - login         : autenticação bem-sucedida.
 
-    Cada log_action está na mesma transação do evento de domínio
-    (ADR-003 §2.4). Falha de log bloqueia a ação principal.
+    Cada log_action usa manage_transaction=False — a transação já está
+    aberta pelo SQLAlchemy (autocommit=False). O commit é responsabilidade
+    deste chamador (D47).
     """
     try:
         data = LoginRequest(username=username, password=password)
     except ValidationError:
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # CA-021.5: verificar bloqueio antes de qualquer trabalho de CPU.
     blocked, secs_remaining = bruteforce_service.is_blocked(data.username)
     if blocked:
-        # Sem user_id: não sabemos ainda se o username é válido.
         log_action(
             db,
             action="login_blocked",
             description=f"Tentativa bloqueada para username '{data.username}'.",
             metadata={"username": data.username, "secs_remaining": secs_remaining},
             status="alert",
+            manage_transaction=False,
         )
         db.commit()
         return RedirectResponse(
@@ -194,14 +201,11 @@ def post_login(
             status_code=303,
         )
 
-    # Busca o usuário.
     user = db.execute(
         select(User).where(User.username == data.username)
     ).scalar_one_or_none()
 
     if user is None:
-        # Usuário inexistente: roda hash dummy para equalizar tempo de resposta.
-        # NÃO registra no bruteforce (Decisão B).
         verify_password(data.password, _DUMMY_HASH)
         log_action(
             db,
@@ -209,11 +213,11 @@ def post_login(
             description=f"Username '{data.username}' não encontrado.",
             metadata={"reason": "unknown_user"},
             status="failure",
+            manage_transaction=False,
         )
         db.commit()
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # Usuário existe: verifica a senha.
     if not verify_password(data.password, user.password_hash):
         blocked_now, block_secs = bruteforce_service.register_failure(data.username)
         log_action(
@@ -223,6 +227,7 @@ def post_login(
             user_display_name=user.display_name,
             metadata={"reason": "wrong_password"},
             status="failure",
+            manage_transaction=False,
         )
         if blocked_now:
             log_action(
@@ -230,9 +235,10 @@ def post_login(
                 action="login_blocked",
                 user_id=user.id,
                 user_display_name=user.display_name,
-                description=f"Bloqueio ativado após falhas repetidas.",
+                description="Bloqueio ativado após falhas repetidas.",
                 metadata={"secs_remaining": block_secs},
                 status="alert",
+                manage_transaction=False,
             )
             db.commit()
             return RedirectResponse(
@@ -242,7 +248,6 @@ def post_login(
         db.commit()
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # Conta desativada.
     if user.active != 1:
         log_action(
             db,
@@ -251,11 +256,11 @@ def post_login(
             user_display_name=user.display_name,
             metadata={"reason": "account_disabled"},
             status="failure",
+            manage_transaction=False,
         )
         db.commit()
         return RedirectResponse(url="/login?error=1", status_code=303)
 
-    # Sucesso.
     bruteforce_service.register_success(data.username)
     user.last_login_at = _utc_now_iso()
 
@@ -265,6 +270,7 @@ def post_login(
         user_id=user.id,
         user_display_name=user.display_name,
         description="Login bem-sucedido.",
+        manage_transaction=False,
     )
 
     db.commit()
@@ -297,6 +303,7 @@ def post_logout(
         action="logout",
         user_id=user_id,
         description="Sessão encerrada pelo operador.",
+        manage_transaction=False,
     )
     db.commit()
 
