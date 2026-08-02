@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-5);">
+  <div style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: var(--space-2);">
+    RF-020 · LOG DE AUDITORIA
+  </div>
+  <h1 style="font-family: var(--font-sans); font-size: var(--font-size-xl); font-weight: 600; color: var(--text-primary); margin: 0 0 var(--space-1) 0;">
+    Trilha de Auditoria
+  </h1>
+  <p style="font-family: var(--font-sans); font-size: var(--font-size-sm); color: var(--text-secondary); margin: 0;">
+    Registro imutável de todas as ações sensíveis. Somente leitura.
+  </p>
+</div>
+
+<!-- Filtros -->
+<div class="card" style="margin-bottom: var(--space-4);">
+  <div class="card__body">
+    <div style="display: flex; gap: var(--space-4); align-items: flex-end; flex-wrap: wrap;">
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-1);">
+        <label for="filter-action" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+          Ação
+        </label>
+        <select id="filter-action" style="
+          padding: var(--space-2) var(--space-3);
+          background: var(--bg-base);
+          border: var(--border-width-base) solid var(--border-strong);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-family: var(--font-mono);
+          font-size: var(--font-size-sm);
+          min-width: 16rem;
+        ">
+          <option value="">— todas —</option>
+        </select>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-1);">
+        <label for="filter-date" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+          Data
+        </label>
+        <input type="date" id="filter-date" style="
+          padding: var(--space-2) var(--space-3);
+          background: var(--bg-base);
+          border: var(--border-width-base) solid var(--border-strong);
+          border-radius: var(--radius-md);
+          color: var(--text-primary);
+          font-family: var(--font-mono);
+          font-size: var(--font-size-sm);
+        " />
+      </div>
+
+      <button type="button" id="btn-filter" class="btn btn--primary" style="align-self: flex-end;">
+        FILTRAR
+      </button>
+      <button type="button" id="btn-clear" class="btn btn--ghost" style="align-self: flex-end;">
+        LIMPAR
+      </button>
+
+    </div>
+  </div>
+</div>
+
+<!-- Contador e paginação -->
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-3);">
+  <span id="audit-count" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-tertiary);">
+    —
+  </span>
+  <div style="display: flex; gap: var(--space-2); align-items: center;">
+    <button type="button" id="btn-prev" class="btn btn--ghost btn--sm" disabled>← ANTERIOR</button>
+    <span id="audit-page-info" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-secondary);">—</span>
+    <button type="button" id="btn-next" class="btn btn--ghost btn--sm" disabled>PRÓXIMA →</button>
+  </div>
+</div>
+
+<!-- Tabela -->
+<div class="card">
+  <div style="overflow-x: auto;">
+    <table style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr style="border-bottom: var(--border-width-base) solid var(--border-strong);">
+          <th style="padding: var(--space-2) var(--space-3); text-align: left; font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em; white-space: nowrap;">Timestamp</th>
+          <th style="padding: var(--space-2) var(--space-3); text-align: left; font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em;">Operador</th>
+          <th style="padding: var(--space-2) var(--space-3); text-align: left; font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em;">Ação</th>
+          <th style="padding: var(--space-2) var(--space-3); text-align: left; font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em;">Entidade</th>
+          <th style="padding: var(--space-2) var(--space-3); text-align: left; font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em;">Status</th>
+          <th style="padding: var(--space-2) var(--space-3); text-align: left; font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em;">Hash</th>
+        </tr>
+      </thead>
+      <tbody id="audit-tbody">
+        <tr>
+          <td colspan="6" style="padding: var(--space-5); text-align: center; color: var(--text-tertiary); font-family: var(--font-mono); font-size: var(--font-size-sm);">
+            Carregando…
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_body %}
+<script>
+(function () {
+  'use strict';
+
+  const tbody   = document.getElementById('audit-tbody');
+  const count   = document.getElementById('audit-count');
+  const pageInfo = document.getElementById('audit-page-info');
+  const btnPrev = document.getElementById('btn-prev');
+  const btnNext = document.getElementById('btn-next');
+  const selAction = document.getElementById('filter-action');
+  const inpDate   = document.getElementById('filter-date');
+  const btnFilter = document.getElementById('btn-filter');
+  const btnClear  = document.getElementById('btn-clear');
+
+  let currentPage = 1;
+  let currentAction = '';
+  let currentDate = '';
+
+  const STATUS_COLOR = {
+    success: 'var(--accent)',
+    failure: 'var(--error)',
+    alert:   'var(--warning, #e6a817)',
+  };
+
+  function formatTs(ts) {
+    if (!ts) return '—';
+    // "2026-07-11T20:01:08.123456Z" → "2026-07-11 20:01:08"
+    return ts.replace('T', ' ').substring(0, 19);
+  }
+
+  function renderEmpty(msg) {
+    tbody.innerHTML = `<tr><td colspan="6" style="padding: var(--space-5); text-align: center; color: var(--text-tertiary); font-family: var(--font-mono); font-size: var(--font-size-sm);">${msg}</td></tr>`;
+  }
+
+  function renderRows(items) {
+    if (!items.length) { renderEmpty('Nenhum registro encontrado.'); return; }
+    tbody.innerHTML = items.map(r => {
+      const statusColor = STATUS_COLOR[r.status] || 'var(--text-secondary)';
+      const entity = r.entity_type
+        ? `${r.entity_type}${r.entity_id ? ' #' + r.entity_id : ''}`
+        : '—';
+      const hash = r.record_hash ? r.record_hash.substring(0, 16) + '…' : '—';
+      return `
+        <tr style="border-bottom: var(--border-width-base) solid var(--border-subtle);">
+          <td style="padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-secondary); white-space: nowrap;">${formatTs(r.timestamp)}</td>
+          <td style="padding: var(--space-2) var(--space-3); font-family: var(--font-sans); font-size: var(--font-size-sm); color: var(--text-primary);">${r.user_display_name || '—'}</td>
+          <td style="padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-primary);">${r.action}</td>
+          <td style="padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-secondary);">${entity}</td>
+          <td style="padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: var(--font-size-xs); color: ${statusColor}; text-transform: uppercase;">${r.status}</td>
+          <td style="padding: var(--space-2) var(--space-3); font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-tertiary);" title="${r.record_hash}">${hash}</td>
+        </tr>`;
+    }).join('');
+  }
+
+  async function loadActions() {
+    try {
+      const res = await fetch('/api/audit/actions', { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const data = await res.json();
+      data.actions.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a; opt.textContent = a;
+        selAction.appendChild(opt);
+      });
+    } catch (_) {}
+  }
+
+  async function load(page) {
+    renderEmpty('Carregando…');
+    const params = new URLSearchParams({ page, per_page: 50 });
+    if (currentAction) params.set('action', currentAction);
+    if (currentDate)   params.set('date', currentDate);
+
+    try {
+      const res = await fetch(`/api/audit?${params}`, { credentials: 'same-origin' });
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (!res.ok) { renderEmpty('Erro ao carregar registros.'); return; }
+      const data = await res.json();
+
+      currentPage = data.page;
+      count.textContent = `${data.total} registro${data.total !== 1 ? 's' : ''}`;
+      pageInfo.textContent = `Página ${data.page} de ${data.pages}`;
+      btnPrev.disabled = data.page <= 1;
+      btnNext.disabled = data.page >= data.pages;
+
+      renderRows(data.items);
+    } catch (_) {
+      renderEmpty('Erro de comunicação com o servidor.');
+    }
+  }
+
+  btnFilter.addEventListener('click', () => {
+    currentAction = selAction.value;
+    currentDate   = inpDate.value;
+    load(1);
+  });
+
+  btnClear.addEventListener('click', () => {
+    selAction.value = '';
+    inpDate.value   = '';
+    currentAction   = '';
+    currentDate     = '';
+    load(1);
+  });
+
+  btnPrev.addEventListener('click', () => load(currentPage - 1));
+  btnNext.addEventListener('click', () => load(currentPage + 1));
+
+  loadActions();
+  load(1);
+})();
+</script>
+{% endblock %}
