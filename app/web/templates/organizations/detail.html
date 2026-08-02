@@ -1,7 +1,155 @@
 {% extends "base.html" %}
 {% block title %}{{ page_title }}{% endblock %}
+
 {% block content %}
-<div style="padding:var(--space-5);font-family:var(--font-mono);color:var(--text-tertiary);">
-  Tela de detalhe de organização — Sprint 01-B, sub-passo B5.
+
+{# ── Estados ── #}
+<div id="org-detail-loading" style="padding:var(--space-5);font-family:var(--font-mono);color:var(--text-tertiary);">
+  Carregando…
 </div>
+
+<div id="org-detail-notfound" hidden style="padding:var(--space-5);font-family:var(--font-mono);color:var(--error);">
+  Organização não encontrada.
+  <a href="/organizations" style="color:var(--accent);margin-left:var(--space-3);">← ORGANIZAÇÕES</a>
+</div>
+
+<div id="org-detail-content" hidden>
+
+  {# ── Cabeçalho ── #}
+  <div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-1);">
+    <a href="/organizations" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-tertiary);text-decoration:none;">← ORGANIZAÇÕES</a>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-5);">
+    <h1 id="org-detail-archived-note" hidden
+        style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);background:var(--bg-elevated);padding:var(--space-1) var(--space-2);border-radius:var(--radius-sm);">
+      [ARQUIVADA]
+    </h1>
+    <button id="org-detail-edit" type="button" class="btn btn--ghost">Editar</button>
+  </div>
+
+  {# ── IDENTIFICAÇÃO ── #}
+  <div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card__header"><span class="card__title">IDENTIFICAÇÃO</span></div>
+    <div class="card__body" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+
+      <div>
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Nome</div>
+        <div data-field="name" style="font-family:var(--font-sans);font-size:var(--font-size-base);color:var(--text-primary);font-weight:600;">—</div>
+      </div>
+
+      <div>
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Status</div>
+        <div data-field="status_badge">—</div>
+      </div>
+
+      <div>
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Siglas</div>
+        <div data-field="siglas" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-primary);">—</div>
+      </div>
+
+      <div>
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Tipo</div>
+        <div data-field="org_type" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-primary);">—</div>
+      </div>
+
+      <div style="grid-column:1/-1;">
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Alcunhas</div>
+        <div data-field="alcunhas" style="font-family:var(--font-sans);font-size:var(--font-size-sm);color:var(--text-secondary);">—</div>
+      </div>
+
+      <div style="grid-column:1/-1;">
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Área de Atuação</div>
+        <div data-field="area_atuacao" style="font-family:var(--font-sans);font-size:var(--font-size-sm);color:var(--text-secondary);">—</div>
+      </div>
+
+    </div>
+  </div>
+
+  {# ── FONTE E CONFIABILIDADE ── #}
+  <div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card__header"><span class="card__title">FONTE</span></div>
+    <div class="card__body" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+
+      <div>
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Fonte</div>
+        <div data-field="source" style="font-family:var(--font-sans);font-size:var(--font-size-sm);color:var(--text-secondary);">—</div>
+      </div>
+
+      <div>
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Confiabilidade</div>
+        <div data-field="reliability_level" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-primary);">—</div>
+      </div>
+
+    </div>
+  </div>
+
+  {# ── NOTAS ── #}
+  <div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card__header"><span class="card__title">NOTAS</span></div>
+    <div class="card__body">
+      <div data-field="notes" style="font-family:var(--font-sans);font-size:var(--font-size-sm);color:var(--text-secondary);white-space:pre-wrap;">—</div>
+    </div>
+  </div>
+
+  {# ── VÍNCULO FACCIONAL (placeholder — B6) ── #}
+  <div class="card" style="margin-bottom:var(--space-4);">
+    <div class="card__header">
+      <span class="card__title">MEMBROS VINCULADOS</span>
+      <button id="btn-vincular-pessoa" type="button" class="btn btn--ghost btn--sm" style="margin-left:auto;">+ Vincular pessoa</button>
+    </div>
+    <div id="links-loading" style="padding:var(--space-3);font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);">Carregando…</div>
+    <div id="links-empty" hidden style="padding:var(--space-3);font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);">Nenhuma pessoa vinculada a esta organização ainda.</div>
+    <div id="links-table-wrap" hidden style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="border-bottom:var(--border-width-base) solid var(--border-strong);">
+            <th style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;">Pessoa</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;">Tipo</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;">Posição</th>
+            <th style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;">Confiabilidade</th>
+            <th style="padding:var(--space-2) var(--space-3);"></th>
+          </tr>
+        </thead>
+        <tbody id="links-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── AUDITORIA ── #}
+  <div class="card">
+    <div class="card__header"><span class="card__title">AUDITORIA</span></div>
+    <div class="card__body" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+      <div>
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Criado em</div>
+        <div data-field="created_at" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);">—</div>
+      </div>
+      <div>
+        <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Atualizado em</div>
+        <div data-field="updated_at" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);">—</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+{# ── Modal vincular pessoa (placeholder — será populado no B6) ── #}
+<div id="modal-vincular-backdrop" class="modal-backdrop" data-open="false" role="dialog" aria-modal="true">
+  <div class="card" style="width:100%;max-width:480px;margin:auto;">
+    <div class="card__header"><span class="card__title">VINCULAR PESSOA</span></div>
+    <div class="card__body">
+      <p style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);">
+        Funcionalidade implementada no sub-passo B6 (RF-005).
+      </p>
+    </div>
+    <div class="card__footer" style="display:flex;justify-content:flex-end;">
+      <button type="button" class="btn btn--ghost" id="modal-vincular-close">FECHAR</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_body %}
+<script src="/static/js/org_detail.js" defer></script>
 {% endblock %}
