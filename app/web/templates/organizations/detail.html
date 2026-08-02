@@ -3,10 +3,7 @@
 
 {% block content %}
 
-{# ── Estados ── #}
-<div id="org-detail-loading" style="padding:var(--space-5);font-family:var(--font-mono);color:var(--text-tertiary);">
-  Carregando…
-</div>
+<div id="org-detail-loading" style="padding:var(--space-5);font-family:var(--font-mono);color:var(--text-tertiary);">Carregando…</div>
 
 <div id="org-detail-notfound" hidden style="padding:var(--space-5);font-family:var(--font-mono);color:var(--error);">
   Organização não encontrada.
@@ -15,76 +12,56 @@
 
 <div id="org-detail-content" hidden>
 
-  {# ── Cabeçalho ── #}
-  <div style="display:flex;align-items:baseline;gap:var(--space-3);margin-bottom:var(--space-1);">
-    <a href="/organizations" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-tertiary);text-decoration:none;">← ORGANIZAÇÕES</a>
-  </div>
-
   <div style="display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-5);">
-    <h1 id="org-detail-archived-note" hidden
-        style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);background:var(--bg-elevated);padding:var(--space-1) var(--space-2);border-radius:var(--radius-sm);">
-      [ARQUIVADA]
-    </h1>
-    <button id="org-detail-edit" type="button" class="btn btn--ghost">Editar</button>
+    <a href="/organizations" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-tertiary);text-decoration:none;">← ORGANIZAÇÕES</a>
+    <span id="org-detail-archived-note" hidden style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);background:var(--bg-elevated);padding:var(--space-1) var(--space-2);border-radius:var(--radius-sm);">[ARQUIVADA]</span>
+    <button id="org-detail-edit" type="button" class="btn btn--ghost" style="margin-left:auto;">Editar</button>
   </div>
 
-  {# ── IDENTIFICAÇÃO ── #}
   <div class="card" style="margin-bottom:var(--space-4);">
     <div class="card__header"><span class="card__title">IDENTIFICAÇÃO</span></div>
     <div class="card__body" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
-
       <div>
         <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Nome</div>
         <div data-field="name" style="font-family:var(--font-sans);font-size:var(--font-size-base);color:var(--text-primary);font-weight:600;">—</div>
       </div>
-
       <div>
         <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Status</div>
         <div data-field="status_badge">—</div>
       </div>
-
       <div>
         <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Siglas</div>
         <div data-field="siglas" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-primary);">—</div>
       </div>
-
       <div>
         <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Tipo</div>
         <div data-field="org_type" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-primary);">—</div>
       </div>
-
       <div style="grid-column:1/-1;">
         <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Alcunhas</div>
         <div data-field="alcunhas" style="font-family:var(--font-sans);font-size:var(--font-size-sm);color:var(--text-secondary);">—</div>
       </div>
-
       <div style="grid-column:1/-1;">
         <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Área de Atuação</div>
         <div data-field="area_atuacao" style="font-family:var(--font-sans);font-size:var(--font-size-sm);color:var(--text-secondary);">—</div>
       </div>
-
     </div>
   </div>
 
-  {# ── FONTE E CONFIABILIDADE ── #}
   <div class="card" style="margin-bottom:var(--space-4);">
     <div class="card__header"><span class="card__title">FONTE</span></div>
     <div class="card__body" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
-
       <div>
         <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Fonte</div>
         <div data-field="source" style="font-family:var(--font-sans);font-size:var(--font-size-sm);color:var(--text-secondary);">—</div>
       </div>
-
       <div>
         <div style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;margin-bottom:var(--space-1);">Confiabilidade</div>
         <div data-field="reliability_level" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-primary);">—</div>
       </div>
-
     </div>
   </div>
 
-  {# ── NOTAS ── #}
   <div class="card" style="margin-bottom:var(--space-4);">
     <div class="card__header"><span class="card__title">NOTAS</span></div>
     <div class="card__body">
@@ -92,14 +69,14 @@
     </div>
   </div>
 
-  {# ── VÍNCULO FACCIONAL (placeholder — B6) ── #}
+  {# ── MEMBROS VINCULADOS (RF-005) ── #}
   <div class="card" style="margin-bottom:var(--space-4);">
-    <div class="card__header">
+    <div class="card__header" style="display:flex;align-items:center;">
       <span class="card__title">MEMBROS VINCULADOS</span>
       <button id="btn-vincular-pessoa" type="button" class="btn btn--ghost btn--sm" style="margin-left:auto;">+ Vincular pessoa</button>
     </div>
     <div id="links-loading" style="padding:var(--space-3);font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);">Carregando…</div>
-    <div id="links-empty" hidden style="padding:var(--space-3);font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);">Nenhuma pessoa vinculada a esta organização ainda.</div>
+    <div id="links-empty" hidden style="padding:var(--space-3);font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);">Nenhuma pessoa vinculada ainda.</div>
     <div id="links-table-wrap" hidden style="overflow-x:auto;">
       <table style="width:100%;border-collapse:collapse;">
         <thead>
@@ -116,7 +93,6 @@
     </div>
   </div>
 
-  {# ── AUDITORIA ── #}
   <div class="card">
     <div class="card__header"><span class="card__title">AUDITORIA</span></div>
     <div class="card__body" style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
@@ -133,17 +109,59 @@
 
 </div>
 
-{# ── Modal vincular pessoa (placeholder — será populado no B6) ── #}
+{# ── Modal vincular pessoa ── #}
 <div id="modal-vincular-backdrop" class="modal-backdrop" data-open="false" role="dialog" aria-modal="true">
-  <div class="card" style="width:100%;max-width:480px;margin:auto;">
+  <div class="card" style="width:100%;max-width:520px;margin:auto;">
     <div class="card__header"><span class="card__title">VINCULAR PESSOA</span></div>
-    <div class="card__body">
-      <p style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);">
-        Funcionalidade implementada no sub-passo B6 (RF-005).
-      </p>
+    <div class="card__body" style="display:flex;flex-direction:column;gap:var(--space-4);">
+
+      <div>
+        <label for="vp-person-select" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Pessoa *</label>
+        <select id="vp-person-select" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-mono);font-size:var(--font-size-sm);">
+          <option value="">— selecione —</option>
+        </select>
+        <span id="vp-person-hint" style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);display:block;margin-top:var(--space-1);" hidden></span>
+      </div>
+
+      <div>
+        <label for="vp-link-type" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Tipo de Vínculo *</label>
+        <select id="vp-link-type" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-mono);font-size:var(--font-size-sm);">
+          <option value="">— selecione —</option>
+          <option value="membro">Membro</option>
+          <option value="suspeito_membro">Suspeito de membro</option>
+          <option value="simpatizante">Simpatizante</option>
+          <option value="ex_membro">Ex-membro</option>
+          <option value="familiar">Familiar de membro</option>
+          <option value="vitima">Vítima</option>
+          <option value="rival">Rival</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="vp-position" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Posição hierárquica</label>
+        <input type="text" id="vp-position" maxlength="120" placeholder="ex: líder, soldado, olheiro…" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--font-size-base);" />
+      </div>
+
+      <div>
+        <label for="vp-source" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Fonte *</label>
+        <input type="text" id="vp-source" maxlength="255" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--font-size-base);" />
+      </div>
+
+      <div>
+        <label for="vp-reliability" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Confiabilidade</label>
+        <select id="vp-reliability" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-mono);font-size:var(--font-size-sm);">
+          <option value="pending">Pendente</option>
+          <option value="baixo">Baixo</option>
+          <option value="medio">Médio</option>
+          <option value="alto">Alto</option>
+          <option value="validado">Validado</option>
+        </select>
+      </div>
+
     </div>
-    <div class="card__footer" style="display:flex;justify-content:flex-end;">
-      <button type="button" class="btn btn--ghost" id="modal-vincular-close">FECHAR</button>
+    <div class="card__footer" style="display:flex;gap:var(--space-3);justify-content:flex-end;">
+      <button type="button" class="btn btn--ghost" id="modal-vincular-cancel">CANCELAR</button>
+      <button type="button" class="btn btn--primary" id="modal-vincular-confirmar">VINCULAR</button>
     </div>
   </div>
 </div>
