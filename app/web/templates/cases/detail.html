@@ -140,6 +140,34 @@
     </div>
   </div>
 
+  {# ---- ─── DOCUMENTOS ─── ---- #}
+  <div style="margin-top: var(--space-5);" id="documents-section">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+      <div class="mono text-tertiary">─── DOCUMENTOS ───</div>
+      <button type="button" id="doc-import-btn" class="btn btn--primary">[+] IMPORTAR</button>
+    </div>
+
+    <div id="doc-loading" class="text-secondary mono" style="font-size: var(--text-sm);">Carregando…</div>
+    <div id="doc-empty" hidden class="app-content__placeholder-message" style="margin-top: 0;">
+      Nenhum documento importado neste caso.
+    </div>
+
+    <table id="doc-table" hidden style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr class="mono text-tertiary" style="font-size: var(--text-sm); border-bottom: 1px solid var(--border-subtle);">
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Nome</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Formato</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Tamanho</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Importado em</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Integridade</th>
+          <th style="padding: var(--space-2) 0 var(--space-2) var(--space-3); font-weight: 500;"></th>
+        </tr>
+      </thead>
+      <tbody id="doc-tbody">
+      </tbody>
+    </table>
+  </div>
+
   {# ---- ─── AUDITORIA ─── ---- #}
   <div style="margin-top: var(--space-5); margin-bottom: var(--space-6);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">─── AUDITORIA ───</div>
@@ -243,7 +271,59 @@
   </div>{# /card #}
 </div>{# /modal-backdrop #}
 
+{# Modal — Importar documento (RF-007, ADR-004) #}
+<div class="modal-backdrop" id="modal-doc-import-backdrop" data-open="false"
+     role="dialog" aria-modal="true" aria-labelledby="modal-doc-import-title">
+  <div class="card" style="width: 560px; max-width: calc(100vw - var(--space-6));">
+    <div class="card__header">
+      <div class="card__title" id="modal-doc-import-title">IMPORTAR DOCUMENTO</div>
+      <div class="card__subtitle">RF-007 · Cadeia de custódia com SHA-256</div>
+    </div>
+    <div class="card__body">
+
+      <div class="field">
+        <label class="field__label field__label--required" for="doc-file-input">Arquivo</label>
+        <input type="file" id="doc-file-input" class="input"
+               accept=".pdf,.docx,.txt,.jpg,.jpeg,.png">
+        <span class="field__hint">Formatos aceitos: PDF, DOCX, TXT, JPG, PNG</span>
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="doc-title-input">Título <span class="text-tertiary">(opcional)</span></label>
+        <input type="text" id="doc-title-input" class="input"
+               placeholder="Título descritivo do documento…" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label class="field__label" for="doc-notes-input">Observações <span class="text-tertiary">(opcional)</span></label>
+        <textarea id="doc-notes-input" class="input"
+                  placeholder="Informações adicionais sobre este documento…"></textarea>
+      </div>
+
+      <div id="doc-duplicate-warning" hidden
+           style="background: var(--surface-warning, var(--surface-2));
+                  border: 1px solid var(--accent); border-radius: var(--radius);
+                  padding: var(--space-3); margin-top: var(--space-2); font-size: var(--text-sm);">
+        <div class="mono" style="margin-bottom: var(--space-1);">⚠ HASH DUPLICADO DETECTADO</div>
+        <div id="doc-duplicate-msg" class="text-secondary"></div>
+        <div style="margin-top: var(--space-2);">
+          <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer;">
+            <input type="checkbox" id="doc-force-duplicate">
+            <span>Confirmo que desejo importar mesmo assim</span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+    <div class="card__footer">
+      <button type="button" class="btn btn--text" id="modal-doc-cancel">Cancelar</button>
+      <button type="button" class="btn btn--primary" id="modal-doc-confirmar">Importar</button>
+    </div>
+  </div>
+</div>
+
 <script src="/static/js/toast.js" defer></script>
+<script src="/static/js/documents_in_case.js" defer></script>
 <script src="/static/js/case_detail.js" defer></script>
 
 {% endblock %}
