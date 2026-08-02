@@ -7,6 +7,7 @@ durante a geração de migrações (Bloco 3).
 
 Sprint 01 — Bloco 2.
 Sprint 01-B — B1: Organization, PersonOrgLink, OrgOrgLink.
+Sprint 01-B — B8: Document.
 """
 
 from app.models.base import Base
@@ -19,6 +20,7 @@ from app.models.person_org_link import PersonOrgLink
 from app.models.org_org_link import OrgOrgLink
 from app.models.audit_log import AuditLog
 from app.models.setting import Setting
+from app.models.document import Document
 
 __all__ = [
     "Base",
@@ -31,4 +33,5 @@ __all__ = [
     "OrgOrgLink",
     "AuditLog",
     "Setting",
+    "Document",
 ]

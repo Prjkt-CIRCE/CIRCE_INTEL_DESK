@@ -11,7 +11,7 @@ Sprint 01 — Bloco 2.
 from typing import Optional
 
 from sqlalchemy import ForeignKey, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
@@ -41,6 +41,8 @@ class Case(Base):
     updated_by: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=True
     )
+
+    documents = relationship("Document", back_populates="case", lazy="select")
 
     __table_args__ = (
         Index("idx_cases_case_code", "case_code"),
