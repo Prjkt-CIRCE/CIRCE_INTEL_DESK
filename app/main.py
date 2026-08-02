@@ -30,6 +30,7 @@ from app.api.links import router as links_router
 from app.api.audit import router as audit_router
 from app.api.organizations import router as organizations_router
 from app.api.documents import router as documents_router
+from app.api.search import router as search_router
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,7 @@ app.include_router(links_router)
 app.include_router(audit_router)
 app.include_router(organizations_router)
 app.include_router(documents_router)
+app.include_router(search_router)
 
 
 @app.get("/health", tags=["system"])
