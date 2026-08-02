@@ -2,7 +2,8 @@
 Rotas web (HTML) do CIRCE Intel Desk.
 
 Bloco 11.2: adicionadas rotas GET /settings e POST /settings (D11 + D6).
-Tela de configuraÃ§Ãµes operacionais â€” parÃ¢metros de sessÃ£o e forÃ§a bruta.
+Bloco 11.4: adicionada rota GET /audit (RF-020).
+Sprint 01-B B4: /organizations despromovida de placeholder para tela funcional.
 log_action usa manage_transaction=False (D-B11-01).
 """
 from fastapi import APIRouter, Depends, Form, Request
@@ -136,7 +137,7 @@ async def lock_page(
 
 
 # ---------------------------------------------------------------------------
-# ConfiguraÃ§Ãµes â€” D11 + D6. Sprint 01 / Bloco 11.2.
+# Configurações — D11 + D6. Sprint 01 / Bloco 11.2.
 # ---------------------------------------------------------------------------
 @router.get("/settings", response_class=HTMLResponse)
 async def settings_page(
@@ -145,8 +146,7 @@ async def settings_page(
     error: str | None = None,
     workspace_id: str = "default",
 ) -> HTMLResponse:
-    """Tela de configuraÃ§Ãµes operacionais (D11)."""
-    ctx = _shell_context(workspace_id, "settings", "CIRCE // ConfiguraÃ§Ãµes")
+    ctx = _shell_context(workspace_id, "settings", "CIRCE // Configurações")
     ctx["settings"] = settings_service.get_all()
     ctx["saved"] = saved is not None
     ctx["error"] = error
@@ -167,7 +167,6 @@ async def settings_save(
     bruteforce_block_seconds: int = Form(...),
     workspace_id: str = "default",
 ) -> HTMLResponse:
-    """Salva configuraÃ§Ãµes operacionais (D11)."""
     user_id = getattr(request.state, "user_id", None)
     try:
         settings_service.set_value("inactivity_lock_minutes", inactivity_lock_minutes, updated_by=user_id)
@@ -181,7 +180,7 @@ async def settings_save(
 
 
 # ---------------------------------------------------------------------------
-# Casos â€” RF-001.
+# Casos — RF-001.
 # ---------------------------------------------------------------------------
 @router.get("/cases", response_class=HTMLResponse)
 async def cases_page(
@@ -206,7 +205,7 @@ async def case_detail_page(
 
 
 # ---------------------------------------------------------------------------
-# Pessoas â€” RF-002.
+# Pessoas — RF-002.
 # ---------------------------------------------------------------------------
 @router.get("/persons", response_class=HTMLResponse)
 async def persons_page(
@@ -231,21 +230,34 @@ async def person_detail_page(
 
 
 # ---------------------------------------------------------------------------
-# Placeholders.
+# Organizações — RF-004. Sprint 01-B / B4.
+# Despromovida de placeholder para tela funcional.
 # ---------------------------------------------------------------------------
 @router.get("/organizations", response_class=HTMLResponse)
 async def organizations_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    return _render_placeholder(
+    return templates.TemplateResponse(
         request=request,
-        template_name="placeholders/organizations.html",
-        active_page="organizations",
-        page_title="CIRCE // OrganizaÃ§Ãµes",
-        workspace_id=workspace_id,
+        name="organizations/list.html",
+        context=_shell_context(workspace_id, "organizations", "CIRCE // Organizações"),
     )
 
 
+@router.get("/organizations/{org_id:int}", response_class=HTMLResponse)
+async def organization_detail_page(
+    request: Request, org_id: int, workspace_id: str = "default"
+) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request=request,
+        name="organizations/detail.html",
+        context=_shell_context(workspace_id, "organizations", "CIRCE // Detalhe da organização"),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Placeholders.
+# ---------------------------------------------------------------------------
 @router.get("/documents", response_class=HTMLResponse)
 async def documents_page(
     request: Request, workspace_id: str = "default"
@@ -267,10 +279,9 @@ async def reports_page(
         request=request,
         template_name="placeholders/reports.html",
         active_page="reports",
-        page_title="CIRCE // RelatÃ³rios",
+        page_title="CIRCE // Relatórios",
         workspace_id=workspace_id,
     )
-
 
 
 # ---------------------------------------------------------------------------
@@ -280,12 +291,13 @@ async def reports_page(
 async def audit_page(
     request: Request, workspace_id: str = "default"
 ) -> HTMLResponse:
-    """Tela de visualização do log de auditoria (RF-020, CA-020.3, CA-020.5)."""
     return templates.TemplateResponse(
         request=request,
         name="audit/audit.html",
         context=_shell_context(workspace_id, "audit", "CIRCE // Auditoria"),
     )
+
+
 @router.get("/dev/components", response_class=HTMLResponse)
 async def dev_components(
     request: Request, workspace_id: str = "default"

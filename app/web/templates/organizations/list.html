@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+
+<div style="display:flex; align-items:baseline; gap:var(--space-3); margin-bottom:var(--space-4);">
+  <span id="orgs-title-label" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-tertiary);">
+    ─── ORGANIZAÇÕES ATIVAS ───
+  </span>
+  <span id="orgs-count" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);">00 REGISTROS</span>
+  <span style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);">RF-004 · CADASTRO E GESTÃO DE ORGANIZAÇÕES CRIMINOSAS</span>
+</div>
+
+<div style="display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-4);">
+  <button id="orgs-new-btn" type="button" class="btn btn--primary">[+] NOVA ORGANIZAÇÃO</button>
+  <label style="display:flex;align-items:center;gap:var(--space-2);font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);cursor:pointer;">
+    <input type="checkbox" id="orgs-show-archived" />
+    MOSTRAR ARQUIVADAS
+  </label>
+</div>
+
+<table style="width:100%;border-collapse:collapse;">
+  <thead>
+    <tr style="border-bottom:var(--border-width-base) solid var(--border-strong);">
+      <th data-sort-key="name" style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;cursor:pointer;white-space:nowrap;">
+        NOME <span class="sort-indicator"></span>
+      </th>
+      <th style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;">TIPO</th>
+      <th style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;">SIGLAS</th>
+      <th style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;">STATUS</th>
+      <th style="padding:var(--space-2) var(--space-3);text-align:left;font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.08em;">AÇÕES</th>
+    </tr>
+  </thead>
+  <tbody id="orgs-tbody"></tbody>
+</table>
+
+<div id="orgs-empty" hidden style="padding:var(--space-5);text-align:center;color:var(--text-tertiary);font-family:var(--font-mono);font-size:var(--font-size-sm);">
+  Nenhuma organização cadastrada ainda. Use [+] NOVA ORGANIZAÇÃO (ou Ctrl+Alt+O) para cadastrar a primeira.
+</div>
+
+{# ── Modal criar/editar ── #}
+<div id="org-modal" class="modal-backdrop" data-open="false" role="dialog" aria-modal="true" aria-labelledby="org-modal-title">
+  <div class="card" style="width:100%;max-width:560px;margin:auto;">
+    <div class="card__header">
+      <span id="org-modal-title" class="card__title">NOVA ORGANIZAÇÃO</span>
+      <span id="org-modal-subtitle" style="font-size:var(--font-size-xs);color:var(--text-tertiary);margin-left:var(--space-2);">RF-004</span>
+    </div>
+    <div class="card__body" style="display:flex;flex-direction:column;gap:var(--space-4);">
+
+      <div>
+        <label for="org-form-name" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Nome *</label>
+        <input type="text" id="org-form-name" maxlength="255" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--font-size-base);" />
+        <span id="org-form-name-error" hidden style="font-family:var(--font-mono);font-size:var(--font-size-xs);color:var(--error);margin-top:var(--space-1);display:block;"></span>
+      </div>
+
+      <div style="display:flex;gap:var(--space-3);">
+        <div style="flex:1;">
+          <label for="org-form-siglas" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Siglas</label>
+          <input type="text" id="org-form-siglas" maxlength="120" placeholder="ex: PCC; CV" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-mono);font-size:var(--font-size-base);" />
+        </div>
+        <div style="flex:1;">
+          <label for="org-form-type" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Tipo</label>
+          <select id="org-form-type" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-mono);font-size:var(--font-size-sm);">
+            <option value="">— selecionar —</option>
+            <option value="faccao_prisional">Facção prisional</option>
+            <option value="milicia">Milícia</option>
+            <option value="orcrim_trafico">ORCRIM tráfico</option>
+            <option value="orcrim_patrimonial">ORCRIM patrimonial</option>
+            <option value="outra">Outra</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label for="org-form-alcunhas" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Alcunhas</label>
+        <input type="text" id="org-form-alcunhas" maxlength="255" placeholder="separadas por ;" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--font-size-base);" />
+      </div>
+
+      <div>
+        <label for="org-form-area" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Área de Atuação</label>
+        <input type="text" id="org-form-area" maxlength="255" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--font-size-base);" />
+      </div>
+
+      <div style="display:flex;gap:var(--space-3);">
+        <div style="flex:2;">
+          <label for="org-form-source" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Fonte</label>
+          <input type="text" id="org-form-source" maxlength="255" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--font-size-base);" />
+        </div>
+        <div style="flex:1;">
+          <label for="org-form-reliability" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Confiabilidade</label>
+          <select id="org-form-reliability" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-mono);font-size:var(--font-size-sm);">
+            <option value="pending">Pendente</option>
+            <option value="baixo">Baixo</option>
+            <option value="medio">Médio</option>
+            <option value="alto">Alto</option>
+            <option value="validado">Validado</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label for="org-form-notes" style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-secondary);text-transform:uppercase;display:block;margin-bottom:var(--space-1);">Observações</label>
+        <textarea id="org-form-notes" rows="3" style="width:100%;padding:var(--space-2) var(--space-3);background:var(--bg-base);border:var(--border-width-base) solid var(--border-strong);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:var(--font-size-base);resize:vertical;"></textarea>
+      </div>
+
+    </div>
+    <div class="card__footer" style="display:flex;gap:var(--space-3);justify-content:flex-end;">
+      <button type="button" class="btn btn--ghost" data-modal-close>CANCELAR</button>
+      <button type="button" id="org-form-save" class="btn btn--primary" disabled>SALVAR</button>
+    </div>
+  </div>
+</div>
+
+{# ── Modal arquivar ── #}
+<div id="org-archive-modal" class="modal-backdrop" data-open="false" role="dialog" aria-modal="true">
+  <div class="card" style="width:100%;max-width:400px;margin:auto;">
+    <div class="card__header">
+      <span class="card__title">ARQUIVAR ORGANIZAÇÃO</span>
+    </div>
+    <div class="card__body">
+      <p style="font-family:var(--font-sans);font-size:var(--font-size-sm);color:var(--text-secondary);margin-bottom:var(--space-3);">
+        Confirma o arquivamento da organização abaixo? Ela deixará de aparecer na lista padrão.
+      </p>
+      <p style="font-family:var(--font-mono);font-size:var(--font-size-sm);color:var(--text-primary);">
+        <span id="org-archive-name"></span>
+      </p>
+    </div>
+    <div class="card__footer" style="display:flex;gap:var(--space-3);justify-content:flex-end;">
+      <button type="button" class="btn btn--ghost" data-archive-cancel>CANCELAR</button>
+      <button type="button" id="org-archive-confirm" class="btn btn--primary">ARQUIVAR</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_body %}
+<script src="/static/js/organizations.js" defer></script>
+{% endblock %}
