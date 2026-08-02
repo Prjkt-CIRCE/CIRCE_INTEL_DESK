@@ -1,60 +1,11 @@
 """
 Rotas web (HTML) do CIRCE Intel Desk.
 
-Todas as funções de rota recebem `workspace_id` como parâmetro,
-mesmo que na Sprint 0.5 apenas o workspace 'default' seja
-exposto. Isso é preparação para ADR-010 (Workspaces nomeados
-por caso ativo, status: Proposed em 2026-05-03), de forma
-que a promoção da ADR para Accepted nas sprints 03-05 não
-exija refatoração da camada de roteamento.
-
-Exceção a esse padrão: as rotas de autenticação (GET /setup,
-GET /login, GET /lock), adicionadas no Sprint 01 / Blocos 5.6
-e 6.4. Workspace é um conceito que só existe DEPOIS de
-autenticado — essas telas são o portão, não um cômodo.
-Decisão consciente do operador.
-
-Páginas placeholder de domínio (Organizações, Documentos,
-Relatórios) são apenas casca — implementação real de cada uma
-entra na sprint correspondente do roadmap.
-
-Bloco 6.8: helper _shell_context centraliza a montagem do
-contexto comum a todas as rotas autenticadas (workspace_id,
-active_page, page_title, inactivity_minutes). Centraliza a
-leitura de settings_service para evitar duplicação em cada
-rota e garantir que a injeção de data-inactivity-minutes no
-<body> não seja esquecida em rotas futuras.
-
-Sprint 01 / Bloco 8.4: a rota /cases foi despromovida de
-placeholder para a tela funcional (cases/list.html). É a
-ÚNICA mudança deste sub-passo neste arquivo.
-
-Sprint 01 / Bloco 8.6: adicionada a rota de detalhe
-GET /cases/{case_id:int} (cases/detail.html). Renderização
-SPA-leve: a rota só serve o esqueleto; o conteúdo é buscado
-pelo case_detail.js em GET /api/cases/{id}. O conversor :int
-no path casa com case_id: int da API e faz o FastAPI rejeitar
-ids não-numéricos com 422, sem colidir com /cases.
-
-Sprint 01 / Bloco 9.5: a rota /persons foi despromovida de
-placeholder para a tela funcional (persons/list.html), mesmo
-movimento do 8.4. placeholders/persons.html foi removido do
-repositório (ficou inerte, nenhuma rota aponta mais para ele).
-
-Sprint 01 / Bloco 9.6: adicionada a rota de detalhe
-GET /persons/{person_id:int} (persons/detail.html). Mesmo
-padrão SPA-leve do Bloco 8.6: a rota serve apenas o esqueleto;
-o conteúdo é buscado pelo person_detail.js em
-GET /api/persons/{id}. O conversor :int no path rejeita ids
-não-numéricos com 422, sem colidir com /persons. Decisão D58.
-
-NOTA (Python 3.13 + SQLAlchemy 2.0.36):
-  log_action em /lock usa manage_transaction=False — a sessão
-  já tem transação implícita aberta pelo SQLAlchemy (autocommit=False).
-  BEGIN IMMEDIATE dentro de transação aberta causa OperationalError
-  no SQLite. Corrigido no Bloco 11.
+Bloco 11.2: adicionadas rotas GET /settings e POST /settings (D11 + D6).
+Tela de configurações operacionais — parâmetros de sessão e força bruta.
+log_action usa manage_transaction=False (D-B11-01).
 """
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -71,9 +22,6 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 router = APIRouter(tags=["web"])
 
 
-# ---------------------------------------------------------------------------
-# Helper interno — contexto comum a todas as rotas autenticadas (Bloco 6.8).
-# ---------------------------------------------------------------------------
 def _shell_context(
     workspace_id: str,
     active_page: str | None,
@@ -89,9 +37,6 @@ def _shell_context(
     }
 
 
-# ---------------------------------------------------------------------------
-# Helper interno para renderizar páginas placeholder.
-# ---------------------------------------------------------------------------
 def _render_placeholder(
     request: Request,
     template_name: str,
@@ -106,9 +51,6 @@ def _render_placeholder(
     )
 
 
-# ---------------------------------------------------------------------------
-# Página raiz — shell vazio.
-# ---------------------------------------------------------------------------
 @router.get("/", response_class=HTMLResponse)
 async def home(request: Request, workspace_id: str = "default") -> HTMLResponse:
     return templates.TemplateResponse(
@@ -118,9 +60,6 @@ async def home(request: Request, workspace_id: str = "default") -> HTMLResponse:
     )
 
 
-# ---------------------------------------------------------------------------
-# Rotas de autenticação (HTML) — RF-021, Sprint 01 / Blocos 5.6 e 6.4.
-# ---------------------------------------------------------------------------
 @router.get("/setup", response_class=HTMLResponse)
 async def setup_page(
     request: Request,
@@ -128,7 +67,6 @@ async def setup_page(
 ):
     if _operator_exists(db):
         return RedirectResponse(url="/login", status_code=303)
-
     return templates.TemplateResponse(
         request=request,
         name="auth/setup.html",
@@ -166,12 +104,6 @@ async def lock_page(
     request: Request,
     db: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """
-    Tela de bloqueio (CA-021.7, CA-021.8, CA-021.9).
-
-    log_action usa manage_transaction=False — a sessão já tem transação
-    implícita aberta pelo SQLAlchemy (autocommit=False). Corrigido no Bloco 11.
-    """
     from urllib.parse import quote
     from app.services.audit_service import log_action
 
@@ -204,7 +136,52 @@ async def lock_page(
 
 
 # ---------------------------------------------------------------------------
-# Casos — RF-001. Sprint 01 / Bloco 8, Sub-passo 8.4.
+# Configurações — D11 + D6. Sprint 01 / Bloco 11.2.
+# ---------------------------------------------------------------------------
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(
+    request: Request,
+    saved: str | None = None,
+    error: str | None = None,
+    workspace_id: str = "default",
+) -> HTMLResponse:
+    """Tela de configurações operacionais (D11)."""
+    ctx = _shell_context(workspace_id, "settings", "CIRCE // Configurações")
+    ctx["settings"] = settings_service.get_all()
+    ctx["saved"] = saved is not None
+    ctx["error"] = error
+    return templates.TemplateResponse(
+        request=request,
+        name="settings/settings.html",
+        context=ctx,
+    )
+
+
+@router.post("/settings", response_class=HTMLResponse)
+async def settings_save(
+    request: Request,
+    inactivity_lock_minutes: int = Form(...),
+    session_hours: int = Form(...),
+    bruteforce_max_attempts: int = Form(...),
+    bruteforce_window_seconds: int = Form(...),
+    bruteforce_block_seconds: int = Form(...),
+    workspace_id: str = "default",
+) -> HTMLResponse:
+    """Salva configurações operacionais (D11)."""
+    user_id = getattr(request.state, "user_id", None)
+    try:
+        settings_service.set_value("inactivity_lock_minutes", inactivity_lock_minutes, updated_by=user_id)
+        settings_service.set_value("session_hours", session_hours, updated_by=user_id)
+        settings_service.set_value("bruteforce_max_attempts", bruteforce_max_attempts, updated_by=user_id)
+        settings_service.set_value("bruteforce_window_seconds", bruteforce_window_seconds, updated_by=user_id)
+        settings_service.set_value("bruteforce_block_seconds", bruteforce_block_seconds, updated_by=user_id)
+        return RedirectResponse(url="/settings?saved=1", status_code=303)
+    except Exception as exc:
+        return RedirectResponse(url=f"/settings?error={exc}", status_code=303)
+
+
+# ---------------------------------------------------------------------------
+# Casos — RF-001.
 # ---------------------------------------------------------------------------
 @router.get("/cases", response_class=HTMLResponse)
 async def cases_page(
@@ -229,7 +206,7 @@ async def case_detail_page(
 
 
 # ---------------------------------------------------------------------------
-# Pessoas — RF-002. Sprint 01 / Bloco 9, Sub-passo 9.5.
+# Pessoas — RF-002.
 # ---------------------------------------------------------------------------
 @router.get("/persons", response_class=HTMLResponse)
 async def persons_page(
@@ -254,7 +231,7 @@ async def person_detail_page(
 
 
 # ---------------------------------------------------------------------------
-# Placeholders — páginas de domínio ainda não implementadas.
+# Placeholders.
 # ---------------------------------------------------------------------------
 @router.get("/organizations", response_class=HTMLResponse)
 async def organizations_page(
@@ -295,9 +272,6 @@ async def reports_page(
     )
 
 
-# ---------------------------------------------------------------------------
-# Página de desenvolvimento — showcase de componentes.
-# ---------------------------------------------------------------------------
 @router.get("/dev/components", response_class=HTMLResponse)
 async def dev_components(
     request: Request, workspace_id: str = "default"

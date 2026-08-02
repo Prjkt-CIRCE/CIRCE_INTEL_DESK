@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: var(--space-5);">
+  <div style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: var(--space-2);">
+    D11 · CONFIGURAÇÕES OPERACIONAIS
+  </div>
+  <h1 style="font-family: var(--font-sans); font-size: var(--font-size-xl); font-weight: 600; color: var(--text-primary); margin: 0 0 var(--space-1) 0;">
+    Configurações do Sistema
+  </h1>
+  <p style="font-family: var(--font-sans); font-size: var(--font-size-sm); color: var(--text-secondary); margin: 0;">
+    Parâmetros de sessão, bloqueio e segurança. Alterações têm efeito imediato.
+  </p>
+</div>
+
+{% if saved %}
+<div style="
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--accent);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--accent);
+">
+  ✓ Configurações salvas com sucesso.
+</div>
+{% endif %}
+
+{% if error %}
+<div style="
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--error);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-5);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--error);
+">
+  Erro ao salvar: {{ error }}
+</div>
+{% endif %}
+
+<form method="post" action="/settings" novalidate style="max-width: 640px;">
+
+  <div class="card" style="margin-bottom: var(--space-5);">
+    <div class="card__header">
+      <span class="card__title">SESSÃO</span>
+    </div>
+    <div class="card__body" style="display: flex; flex-direction: column; gap: var(--space-5);">
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+        <label for="inactivity_lock_minutes" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+          Bloqueio por inatividade <span style="color: var(--text-tertiary); text-transform: none;">— minutos · 0 = desativado</span>
+        </label>
+        <input
+          type="number" id="inactivity_lock_minutes" name="inactivity_lock_minutes"
+          value="{{ settings.inactivity_lock_minutes }}"
+          min="0" max="480" step="1"
+          style="width: 8rem; padding: var(--space-2) var(--space-3); background: var(--bg-base); border: var(--border-width-base) solid var(--border-strong); border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--font-size-base);"
+        />
+        <span style="font-size: var(--font-size-sm); color: var(--text-tertiary); font-family: var(--font-sans);">
+          Minutos de inatividade até o sistema bloquear a tela automaticamente.
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+        <label for="session_hours" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+          Duração da sessão <span style="color: var(--text-tertiary); text-transform: none;">— horas</span>
+        </label>
+        <input
+          type="number" id="session_hours" name="session_hours"
+          value="{{ settings.session_hours }}"
+          min="1" max="72" step="1"
+          style="width: 8rem; padding: var(--space-2) var(--space-3); background: var(--bg-base); border: var(--border-width-base) solid var(--border-strong); border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--font-size-base);"
+        />
+        <span style="font-size: var(--font-size-sm); color: var(--text-tertiary); font-family: var(--font-sans);">
+          Horas até exigir novo login, independente de atividade.
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom: var(--space-5);">
+    <div class="card__header">
+      <span class="card__title">PROTEÇÃO CONTRA FORÇA BRUTA</span>
+    </div>
+    <div class="card__body" style="display: flex; flex-direction: column; gap: var(--space-5);">
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+        <label for="bruteforce_max_attempts" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+          Tentativas antes do bloqueio
+        </label>
+        <input
+          type="number" id="bruteforce_max_attempts" name="bruteforce_max_attempts"
+          value="{{ settings.bruteforce_max_attempts }}"
+          min="1" max="20" step="1"
+          style="width: 8rem; padding: var(--space-2) var(--space-3); background: var(--bg-base); border: var(--border-width-base) solid var(--border-strong); border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--font-size-base);"
+        />
+        <span style="font-size: var(--font-size-sm); color: var(--text-tertiary); font-family: var(--font-sans);">
+          Falhas de login consecutivas antes de bloquear o usuário temporariamente.
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+        <label for="bruteforce_window_seconds" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+          Janela de contagem <span style="color: var(--text-tertiary); text-transform: none;">— segundos</span>
+        </label>
+        <input
+          type="number" id="bruteforce_window_seconds" name="bruteforce_window_seconds"
+          value="{{ settings.bruteforce_window_seconds }}"
+          min="60" max="3600" step="60"
+          style="width: 8rem; padding: var(--space-2) var(--space-3); background: var(--bg-base); border: var(--border-width-base) solid var(--border-strong); border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--font-size-base);"
+        />
+        <span style="font-size: var(--font-size-sm); color: var(--text-tertiary); font-family: var(--font-sans);">
+          Período em que as tentativas falhas são contadas.
+        </span>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: var(--space-2);">
+        <label for="bruteforce_block_seconds" style="font-family: var(--font-mono); font-size: var(--font-size-sm); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">
+          Duração do bloqueio <span style="color: var(--text-tertiary); text-transform: none;">— segundos</span>
+        </label>
+        <input
+          type="number" id="bruteforce_block_seconds" name="bruteforce_block_seconds"
+          value="{{ settings.bruteforce_block_seconds }}"
+          min="60" max="86400" step="60"
+          style="width: 8rem; padding: var(--space-2) var(--space-3); background: var(--bg-base); border: var(--border-width-base) solid var(--border-strong); border-radius: var(--radius-md); color: var(--text-primary); font-family: var(--font-mono); font-size: var(--font-size-base);"
+        />
+        <span style="font-size: var(--font-size-sm); color: var(--text-tertiary); font-family: var(--font-sans);">
+          Tempo de bloqueio após exceder as tentativas permitidas.
+        </span>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="display: flex; gap: var(--space-3); align-items: center;">
+    <button type="submit" class="btn btn--primary">SALVAR CONFIGURAÇÕES</button>
+    <a href="/cases" class="btn btn--ghost">CANCELAR</a>
+  </div>
+
+</form>
+{% endblock %}

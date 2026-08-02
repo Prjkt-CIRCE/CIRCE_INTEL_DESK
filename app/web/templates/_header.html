@@ -1,10 +1,7 @@
 {# ============================================================
    Header partial — CIRCE Intel Desk
-   Identificador, navegação principal, identidade do operador,
-   toggle de tema (Bloco 3).
-
-   Variáveis esperadas no contexto:
-     - active_page: str — id da página ativa para destacar item do menu.
+   Bloco 11.1: botão SAIR adicionado.
+   Bloco 11.2: item Configurações adicionado ao nav.
    ============================================================ #}
 
 <header class="app-header" role="banner">
@@ -22,6 +19,8 @@
        href="/documents">Documentos</a>
     <a class="app-header__nav-item {% if active_page == 'reports' %}app-header__nav-item--active{% endif %}"
        href="/reports">Relatórios</a>
+    <a class="app-header__nav-item {% if active_page == 'settings' %}app-header__nav-item--active{% endif %}"
+       href="/settings">Config</a>
   </nav>
 
   <div class="app-header__meta">
