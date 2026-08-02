@@ -14,8 +14,11 @@ downgrade). Customizações em relação ao template padrão gerado por
 4. Habilita render_as_batch=True para SQLite — necessário para ALTER TABLE
    em migrações futuras (SQLite tem suporte limitado a alter; o modo batch
    recria a tabela transparentemente).
+5. include_object exclui tabelas fts_* do autogenerate — tabelas virtuais
+   FTS5 são gerenciadas manualmente e não devem ser tocadas pelo diff ORM.
 
 Sprint 01 — Bloco 3.
+Sprint 01-B — FTS5: adição do include_object.
 """
 
 import sys
@@ -51,6 +54,13 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    """Exclui tabelas virtuais FTS5 do diff de autogenerate."""
+    if type_ == "table" and name.startswith("fts_"):
+        return False
+    return True
+
+
 def run_migrations_offline() -> None:
     """
     Roda migrações em modo offline.
@@ -67,6 +77,7 @@ def run_migrations_offline() -> None:
         render_as_batch=True,  # Necessário para SQLite (ver docstring no topo).
         compare_type=True,
         compare_server_default=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -93,6 +104,7 @@ def run_migrations_online() -> None:
             render_as_batch=True,  # Necessário para SQLite (ver docstring no topo).
             compare_type=True,
             compare_server_default=True,
+            include_object=include_object,
         )
 
         with context.begin_transaction():
