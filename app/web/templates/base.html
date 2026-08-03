@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="/static/css/tokens.css" />
   <link rel="stylesheet" href="/static/css/base.css" />
   <link rel="stylesheet" href="/static/css/components.css" />
-  <link rel="stylesheet" href="/static/css/layout.css" />
+  <link rel="stylesheet" href="/static/css/layout.css?v=ws1" />
   <link rel="icon" href="data:," />
   {# theme.js e accent.js rodam síncronos no <head> para evitar FOUC. #}
   <script src="/static/js/theme.js"></script>
@@ -49,6 +49,7 @@
       />
       <span class="app-command-bar__hint">Ctrl+K</span>
     </div>
+    {% include "_workspace_bar.html" %}
     <main class="app-content" role="main">
       <div class="app-content__page">
         {% block content %}{% endblock %}
@@ -62,8 +63,9 @@
   <script src="/static/js/status_bar.js" defer></script>
   <script src="/static/js/header_toggles.js" defer></script>
   <script src="/static/js/first_run.js" defer></script>
-  <script src="/static/js/command_palette.js" defer></script>
+  <script src="/static/js/command_palette.js?v=fts5" defer></script>
   <script src="/static/js/shortcuts.js" defer></script>
+  <script src="/static/js/workspaces.js" defer></script>
   <script src="/static/js/inactivity_lock.js" defer></script>
   {% block extra_body %}{% endblock %}
 </body>
