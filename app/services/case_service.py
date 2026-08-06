@@ -1,5 +1,5 @@
 """
-CIRCE Intel Desk — Serviço de Casos (RF-001).
+CIRCE Intel Desk – Serviço de Casos (RF-001).
 
 Regras de domínio do cadastro de casos:
   - Geração de case_code no padrão {ano}-{sequencial-4d} (CA-001.1).
@@ -18,14 +18,16 @@ Transação e auditoria (ADR-003 §2.4 + ADR-003a):
   (visualização de caso não é evento auditável no RF-001; auditoria de
   visualização é escopo de RF-020, tratado à parte).
 
-Strings de action (enum 05_MODELO_DE_DADOS.md §6.4 — contrato do hash,
+Strings de action (enum 05_MODELO_DE_DADOS.md §6.4 – contrato do hash,
 ADR-003 §3.2): "case_create", "case_update", "case_archive".
 
-Sprint 01 — Bloco 8, Sub-passo 8.2.
+Sprint 01 – Bloco 8, Sub-passo 8.2.
+AT-03.8: update_case dispara push_to_athena quando platea_status muda para "shared".
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -35,6 +37,8 @@ from sqlalchemy.orm import Session
 from app.models.case import Case
 from app.schemas.cases import CaseCreate, CaseUpdate
 from app.services import audit_service
+
+logger = logging.getLogger(__name__)
 
 # Tipo de entidade usado nos logs de auditoria (05_MODELO_DE_DADOS.md §3.8)
 _ENTITY_TYPE = "case"
@@ -120,7 +124,7 @@ def create_case(db: Session, data: CaseCreate, user_id: int) -> Case:
             user_id=user_id,
             entity_type=_ENTITY_TYPE,
             entity_id=case.id,
-            description=f"Criação do caso {case.case_code} — {case.name}",
+            description=f"Criação do caso {case.case_code} – {case.name}",
             manage_transaction=False,  # ADR-003a: a transação é deste serviço
         )
 
@@ -133,13 +137,22 @@ def create_case(db: Session, data: CaseCreate, user_id: int) -> Case:
 
 
 def update_case(
-    db: Session, case_id: int, data: CaseUpdate, user_id: int
+    db: Session,
+    case_id: int,
+    data: CaseUpdate,
+    user_id: int,
+    username: Optional[str] = None,
 ) -> Optional[Case]:
     """Edita campos de um caso e audita (CA-001.4, CA-001.6).
 
     Aplica apenas os campos enviados (edição parcial). case_code e status
     NÃO são alterados por aqui (case_code é imutável; arquivar é archive_case).
     Retorna None se o caso não existir.
+
+    AT-03.8: se platea_status for alterado para "shared", dispara push_to_athena
+    após o commit. O push é síncrono — o resultado (shared / pending_sync / error)
+    é persistido por push_to_athena em transação própria.
+    username é necessário para compor published_by no payload do Athena.
     """
     case = db.get(Case, case_id)
     if case is None:
@@ -149,6 +162,9 @@ def update_case(
     changes = data.model_dump(exclude_unset=True)
     if not changes:
         return case  # nada a alterar; não gera log de edição vazia
+
+    # Captura o platea_status anterior para detectar transição → shared.
+    previous_platea_status = case.platea_status
 
     db.execute(text("BEGIN IMMEDIATE"))
     try:
@@ -180,10 +196,43 @@ def update_case(
 
         db.commit()
         db.refresh(case)
-        return case
+
     except Exception:
         db.rollback()
         raise
+
+    # AT-03.8 — dispara push síncrono se platea_status acabou de mudar para "shared".
+    # O push ocorre FORA da transação de update_case (que já commitou),
+    # em transação própria gerenciada por push_to_athena.
+    # Falha no push não reverte a edição do caso — apenas atualiza platea_status.
+    if case.platea_status == "shared" and previous_platea_status != "shared":
+        effective_username = username or f"user:{user_id}"
+        try:
+            from app.services.platea_service import push_to_athena
+            new_platea_status = push_to_athena(
+                db,
+                case_id=case_id,
+                published_by=effective_username,
+                user_id=user_id,
+            )
+            # Recarrega o caso para refletir o platea_status atualizado pelo push.
+            db.refresh(case)
+            logger.info(
+                "AT-03.8: push Platea para caso %s → %s",
+                case.case_code,
+                new_platea_status,
+            )
+        except Exception as exc:
+            # Push falhou de forma inesperada — loga mas não propaga.
+            # O operador verá o badge de erro na UI.
+            logger.error(
+                "AT-03.8: push_to_athena falhou para caso %s: %s",
+                case.case_code,
+                exc,
+                exc_info=True,
+            )
+
+    return case
 
 
 def archive_case(db: Session, case_id: int, user_id: int) -> Optional[Case]:
@@ -224,7 +273,7 @@ def archive_case(db: Session, case_id: int, user_id: int) -> Optional[Case]:
 
 
 def get_case(db: Session, case_id: int) -> Optional[Case]:
-    """Retorna um caso por id, ou None. Leitura pura — não audita."""
+    """Retorna um caso por id, ou None. Leitura pura – não audita."""
     return db.get(Case, case_id)
 
 
@@ -239,7 +288,7 @@ def list_cases(
 
     Por padrão, oculta arquivados (lista padrão) e ordena por data de criação
     decrescente. sort_by aceita: case_code, name, created_at, status.
-    Leitura pura — não audita.
+    Leitura pura – não audita.
     """
     column = _SORTABLE.get(sort_by, Case.created_at)
     order = column.desc() if descending else column.asc()

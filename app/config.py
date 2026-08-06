@@ -1,4 +1,4 @@
-﻿"""
+"""
 CIRCE Intel Desk - configurações do sistema.
 Lê variáveis de ambiente e do arquivo .env (quando presente).
 Defaults garantem operação em loopback (RNF-007) mesmo sem .env.
@@ -8,31 +8,48 @@ import secrets
 from functools import lru_cache
 from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
 # Raiz do projeto = pasta que contém este arquivo subindo dois níveis:
 # este arquivo está em app/config.py, raiz é o pai do "app".
 PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
+
+
 class Settings(BaseSettings):
     """Configurações do CIRCE, com defaults seguros."""
+
     # Rede - ver 10_MODELO_DE_AMEACAS.md (A3) e RNF-007.
     # Default fixo em loopback. Alterar exige novo ADR.
     HOST: str = "127.0.0.1"
     PORT: int = 8765
+
     # Paths.
     DATA_DIR: Path = PROJECT_ROOT / "data"
+
     # Sessão (utilizado a partir da Sprint 01).
     SESSION_HOURS: int = 8
     INACTIVITY_LOCK_MINUTES: int = 5
+
     # Logging.
     LOG_LEVEL: str = "INFO"
+
+    # Athena (AT-03.8) — URL base do servidor Athena na rede local.
+    # Default aponta para loopback na porta padrão do Athena.
+    # Configurável via .env: ATHENA_URL=http://192.168.x.x:8766
+    # Manter em loopback em ambiente single-machine (Casa/Trabalho).
+    ATHENA_URL: str = "http://127.0.0.1:8766"
+
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
         env_file_encoding="utf-8",
         case_sensitive=True,
         extra="ignore",
     )
+
+
 # Instância única, importável por outros módulos como:
 #     from app.config import settings
 settings = Settings()
+
 # --------------------------------------------------------------------
 # SESSION_COOKIE_NAME (Sprint 01 / Bloco 5 / sub-passo 5.8.2)
 # --------------------------------------------------------------------
@@ -45,6 +62,7 @@ settings = Settings()
 # do mesmo nome. Fonte única da verdade. Decisão 5.8.2, Opção 2.
 # --------------------------------------------------------------------
 SESSION_COOKIE_NAME: str = "circe_session"
+
 # --------------------------------------------------------------------
 # SECRET_KEY (Sprint 01 / Bloco 5 / D18)
 # --------------------------------------------------------------------
@@ -58,9 +76,13 @@ SESSION_COOKIE_NAME: str = "circe_session"
 # --------------------------------------------------------------------
 SECRET_KEY_FILENAME: str = ".secret_key"
 SECRET_KEY_LENGTH_BYTES: int = 32  # 256 bits, alinhado com HMAC-SHA256.
+
+
 def _secret_key_path() -> Path:
     """Caminho absoluto do arquivo da SECRET_KEY."""
     return settings.DATA_DIR / SECRET_KEY_FILENAME
+
+
 @lru_cache(maxsize=1)
 def get_secret_key() -> bytes:
     """
@@ -75,8 +97,10 @@ def get_secret_key() -> bytes:
     máximo uma vez por execução do servidor.
     """
     key_path = _secret_key_path()
+
     # Garante que data/ existe. Não falha se já existe.
     settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
+
     if key_path.exists():
         key = key_path.read_bytes()
         if len(key) != SECRET_KEY_LENGTH_BYTES:
@@ -86,9 +110,11 @@ def get_secret_key() -> bytes:
                 f"({len(key)} bytes; esperado {SECRET_KEY_LENGTH_BYTES})."
             )
         return key
+
     # Geração inicial.
     key = secrets.token_bytes(SECRET_KEY_LENGTH_BYTES)
     key_path.write_bytes(key)
+
     # Best-effort em permissões. No Windows isso não faz nada efetivo,
     # mas a chamada é inócua e útil em ambientes POSIX futuros.
     try:
@@ -96,4 +122,5 @@ def get_secret_key() -> bytes:
     except OSError:
         # Não falha se o SO recusar (Windows costuma aceitar silenciosamente).
         pass
+
     return key

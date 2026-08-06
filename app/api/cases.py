@@ -20,17 +20,19 @@ Verbos:
 
 Sprint 01 - Bloco 8, Sub-passo 8.3.
 AT-03.7: endpoint platea_exclude adicionado.
+AT-03.8: update_case passa username ao servico para published_by no Athena.
 """
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database.session import get_session
+from app.models.user import User
 from app.schemas.cases import CaseCreate, CaseResponse, CaseUpdate
 from app.services import case_service
 from app.services import platea_service
@@ -46,6 +48,16 @@ def _current_user_id(request: Request) -> int:
             detail="Operador nao autenticado.",
         )
     return user_id
+
+
+def _get_username(db: Session, user_id: int) -> Optional[str]:
+    """Retorna o username do operador logado, ou None se nao encontrado.
+
+    Usado para popular published_by no payload do Athena (AT-03.8).
+    Leitura pura — nao audita, nao abre transacao imediata.
+    """
+    user = db.get(User, user_id)
+    return user.username if user else None
 
 
 class PlateaExcludeBody(BaseModel):
@@ -112,7 +124,11 @@ def update_case(
     db: Session = Depends(get_session),
 ) -> CaseResponse:
     user_id = _current_user_id(request)
-    case = case_service.update_case(db, case_id, data, user_id=user_id)
+    # AT-03.8: busca username para published_by no payload do Athena.
+    username = _get_username(db, user_id)
+    case = case_service.update_case(
+        db, case_id, data, user_id=user_id, username=username
+    )
     if case is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
