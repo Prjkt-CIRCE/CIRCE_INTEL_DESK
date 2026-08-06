@@ -1,18 +1,19 @@
 """
-CIRCE Intel Desk — Modelo Document (documento importado ao caso).
+CIRCE Intel Desk - Modelo Document (documento importado ao caso).
 
-Referência: 05_MODELO_DE_DADOS.md §3.6, RF-007.
+Referencia: 05_MODELO_DE_DADOS.md S3.6, RF-007.
 Formatos aceitos: pdf, docx, txt, jpg, png.
-imported_at: momento da operação de importação (definido pelo serviço).
-created_at:  timestamp de criação do registro no banco.
+imported_at: momento da operacao de importacao (definido pelo servico).
+created_at:  timestamp de criacao do registro no banco.
 
-Sprint 01-B — Sub-passo B8.
+Sprint 01-B - Sub-passo B8.
+AT-03.7: campo platea_exclude adicionado (marcacao [NAO COMPARTILHAR] por item).
 """
 
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
@@ -38,6 +39,12 @@ class Document(Base):
     sha256_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     title: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # AT-03.7: marcacao [NAO COMPARTILHAR] - exclui item do payload Platea
+    platea_exclude: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+
     imported_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

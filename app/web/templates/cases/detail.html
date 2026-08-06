@@ -1,31 +1,5 @@
 {% extends "base.html" %}
 
-{# ============================================================
-   Tela de detalhe de um caso - RF-001 (visualizar) + RF-003 (vinculos)
-   Sprint 01 . Bloco 8 . Sub-passo 8.6 (original)
-   Sprint 01 . Bloco 10 . Sub-passo 10.5 (secao de vinculos adicionada)
-   AT-03.6: secao PLATEA adicionada (checkbox + badge platea_status)
-
-   Decisoes do operador no 8.6 (preservadas):
-     - (a) Renderizacao SPA-leve: esqueleto HTML, conteudo via JS.
-     - (b/D56) "Editar" navega para /cases?edit={id}.
-     - (c) "Reativar" fora do escopo (D48).
-     - (d) Voltar: link "< CASOS" + atalho Esc.
-
-   Adicoes do 10.5 (RF-003):
-     - Secao "--- PESSOAS VINCULADAS ---" com tabela de vinculos ativos.
-     - Modal de criacao de vinculo - padrao IDENTICO ao list.html:
-       .modal-backdrop[data-open] + .card (sem classe .modal na caixa).
-     - Estado vazio e estado de carregamento proprios da secao.
-     - Zero CSS novo - apenas classes canonicas + style pontual.
-
-   AT-03.6 (Platea):
-     - Secao "--- PLATEA ---" com checkbox "Compartilhar na Platea".
-     - Badge de status (none/shared/pending_sync/error).
-     - Toggle via PATCH /api/cases/{id} com {platea_status}.
-     - Auditoria automatica via case_service.update_case.
-   ============================================================ #}
-
 {% block title %}CIRCE // Detalhe do caso{% endblock %}
 
 {% block content %}
@@ -35,12 +9,10 @@
   <span class="text-tertiary">[Esc]</span>
 </div>
 
-{# Estado A - CARREGANDO #}
 <div id="case-detail-loading" class="app-content__placeholder-message">
   Carregando caso<span class="mono">...</span>
 </div>
 
-{# Estado B - NAO ENCONTRADO #}
 <div id="case-detail-notfound" class="app-content__placeholder-message" hidden>
   Caso nao encontrado. Ele pode ter sido removido ou o endereco esta incorreto.
   <div style="margin-top: var(--space-3);">
@@ -48,10 +20,8 @@
   </div>
 </div>
 
-{# Estado C - CONTEUDO #}
 <div id="case-detail-content" hidden>
 
-  {# ---- Header ---- #}
   <div class="app-content__page-header">
     <h1 class="app-content__page-title" style="display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap;">
       <span class="mono text-secondary" data-field="case_code">-</span>
@@ -68,22 +38,18 @@
     </div>
   </div>
 
-  {# Nota de caso arquivado #}
   <div id="case-detail-archived-note" class="card" hidden style="margin-top: var(--space-4);">
     <div class="card__body text-secondary">
       Este caso esta <strong>arquivado</strong>. A reativacao de casos arquivados
-      sera tratada em etapa futura - por ora, o arquivamento e reversivel apenas
-      pelo filtro "Mostrar arquivados" na lista.
+      sera tratada em etapa futura.
     </div>
   </div>
 
-  {# ---- --- RESUMO --- ---- #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- RESUMO ---</div>
     <p data-field="description" class="text-secondary" style="white-space: pre-wrap; margin: 0;">-</p>
   </div>
 
-  {# ---- --- DADOS DO CASO --- ---- #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- DADOS DO CASO ---</div>
     <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
@@ -94,43 +60,29 @@
     </div>
   </div>
 
-  {# ---- --- TAGS --- ---- #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- TAGS ---</div>
     <p data-field="tags" class="mono text-secondary" style="margin: 0;">-</p>
   </div>
 
-  {# ---- --- NOTAS --- ---- #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- NOTAS ---</div>
     <p data-field="notes" class="text-secondary" style="white-space: pre-wrap; margin: 0;">-</p>
   </div>
 
-  {# ================================================================
-     --- PLATEA --- (AT-03.6)
-     Checkbox para compartilhar o caso na Platea do Athena.
-     Toggle via PATCH /api/cases/{id} com platea_status.
-     Badge reflete o estado atual: none / shared / pending_sync / error.
-     ================================================================ #}
+  {# PLATEA (AT-03.6) #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- PLATEA ---</div>
     <div style="display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap;">
-
-      {# Checkbox de compartilhamento #}
       <label style="display: flex; align-items: center; gap: var(--space-2); cursor: pointer; user-select: none;">
         <input type="checkbox" id="platea-checkbox"
                style="width: 1rem; height: 1rem; cursor: pointer; accent-color: var(--accent);">
         <span class="mono" style="font-size: var(--text-sm);">Compartilhar na Platea</span>
       </label>
-
-      {# Badge de status - preenchido pelo JS via data-field #}
       <span data-field="platea_status_badge"></span>
-
-      {# Indicador de operacao em andamento - oculto por padrao #}
       <span id="platea-saving" class="mono text-tertiary" style="font-size: var(--text-sm);" hidden>
         Salvando...
       </span>
-
     </div>
     <div class="mono text-tertiary" style="font-size: var(--text-sm); margin-top: var(--space-2);">
       Casos compartilhados ficam visiveis para todos os analistas na Platea do Athena.
@@ -138,9 +90,7 @@
     </div>
   </div>
 
-  {# ================================================================
-     --- PESSOAS VINCULADAS --- (RF-003, Bloco 10.5)
-     ================================================================ #}
+  {# PESSOAS VINCULADAS (RF-003) - AT-03.7: coluna [NAO COMPARTILHAR] #}
   <div style="margin-top: var(--space-5);">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
       <div class="mono text-tertiary">--- PESSOAS VINCULADAS ---</div>
@@ -153,11 +103,9 @@
     <div id="links-loading" class="text-secondary mono" style="font-size: 0.85rem;">
       Carregando vinculos<span class="mono">...</span>
     </div>
-
     <div id="links-empty" class="text-tertiary mono" style="font-size: 0.85rem;" hidden>
       Nenhuma pessoa vinculada a este caso.
     </div>
-
     <div id="links-table-wrap" hidden style="overflow-x: auto;">
       <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
         <thead>
@@ -166,6 +114,7 @@
             <th style="padding: var(--space-2) var(--space-3); font-weight: 500;">Papel</th>
             <th style="padding: var(--space-2) var(--space-3); font-weight: 500;">Confiab.</th>
             <th style="padding: var(--space-2) var(--space-3); font-weight: 500;">Fonte</th>
+            <th style="padding: var(--space-2) var(--space-3); font-weight: 500;">Platea</th>
             <th style="padding: var(--space-2) 0 var(--space-2) var(--space-3); font-weight: 500;"></th>
           </tr>
         </thead>
@@ -175,7 +124,7 @@
     </div>
   </div>
 
-  {# ---- --- DOCUMENTOS --- ---- #}
+  {# DOCUMENTOS (RF-007) - AT-03.7: coluna [NAO COMPARTILHAR] #}
   <div style="margin-top: var(--space-5);" id="documents-section">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
       <div class="mono text-tertiary">--- DOCUMENTOS ---</div>
@@ -195,6 +144,7 @@
           <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Tamanho</th>
           <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Importado em</th>
           <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Integridade</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Platea</th>
           <th style="padding: var(--space-2) 0 var(--space-2) var(--space-3); font-weight: 500;"></th>
         </tr>
       </thead>
@@ -203,7 +153,6 @@
     </table>
   </div>
 
-  {# ---- --- AUDITORIA --- ---- #}
   <div style="margin-top: var(--space-5); margin-bottom: var(--space-6);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- AUDITORIA ---</div>
     <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
@@ -218,30 +167,21 @@
     </div>
   </div>
 
-</div>{# /case-detail-content #}
+</div>
 
 {% endblock %}
 
 
 {% block extra_body %}
 
-{# ================================================================
-   MODAL - Vincular pessoa (RF-003, CA-003.1, D-B10-01)
-   Padrao IDENTICO ao list.html (Bloco 8.5):
-     .modal-backdrop[data-open="false/true"] - backdrop fixed fullscreen
-     .card com style width - caixa de conteudo centralizada pelo flex
-   ================================================================ #}
 <div class="modal-backdrop" id="modal-vincular-backdrop" data-open="false"
      role="dialog" aria-modal="true" aria-labelledby="modal-vincular-title">
   <div class="card" style="width: 560px; max-width: calc(100vw - var(--space-6));">
-
     <div class="card__header">
       <div class="card__title" id="modal-vincular-title">VINCULAR PESSOA AO CASO</div>
       <div class="card__subtitle">RF-003 . Registro de vinculo com auditoria</div>
     </div>
-
     <div class="card__body">
-
       <div class="field">
         <label class="field__label field__label--required" for="vp-person-select">Pessoa</label>
         <select id="vp-person-select" class="input">
@@ -249,7 +189,6 @@
         </select>
         <span class="field__hint" id="vp-person-hint" hidden>Carregando pessoas...</span>
       </div>
-
       <div class="field">
         <label class="field__label field__label--required" for="vp-role-select">Tipo de participacao</label>
         <select id="vp-role-select" class="input">
@@ -263,13 +202,11 @@
           <option value="outro">Outro</option>
         </select>
       </div>
-
       <div class="field">
         <label class="field__label field__label--required" for="vp-source-input">Fonte da informacao</label>
         <input type="text" id="vp-source-input" class="input"
                placeholder="ex.: BO 2026/001, relatorio de inteligencia..." autocomplete="off">
       </div>
-
       <div class="field">
         <label class="field__label field__label--required" for="vp-reliability-select">Grau de confiabilidade</label>
         <select id="vp-reliability-select" class="input">
@@ -280,24 +217,19 @@
           <option value="validated">Validado</option>
         </select>
       </div>
-
       <div class="field">
         <label class="field__label" for="vp-notes-input">Observacoes <span class="text-tertiary">(opcional)</span></label>
         <textarea id="vp-notes-input" class="input"
                   placeholder="Informacoes adicionais sobre este vinculo..."></textarea>
       </div>
-
     </div>
-
     <div class="card__footer">
       <button type="button" class="btn btn--text" id="modal-vincular-cancel">Cancelar</button>
       <button type="button" class="btn btn--primary" id="modal-vincular-confirmar">Vincular</button>
     </div>
-
   </div>
 </div>
 
-{# Modal - Importar documento (RF-007, ADR-004) #}
 <div class="modal-backdrop" id="modal-doc-import-backdrop" data-open="false"
      role="dialog" aria-modal="true" aria-labelledby="modal-doc-import-title">
   <div class="card" style="width: 560px; max-width: calc(100vw - var(--space-6));">
@@ -306,26 +238,22 @@
       <div class="card__subtitle">RF-007 . Cadeia de custodia com SHA-256</div>
     </div>
     <div class="card__body">
-
       <div class="field">
         <label class="field__label field__label--required" for="doc-file-input">Arquivo</label>
         <input type="file" id="doc-file-input" class="input"
                accept=".pdf,.docx,.txt,.jpg,.jpeg,.png">
         <span class="field__hint">Formatos aceitos: PDF, DOCX, TXT, JPG, PNG</span>
       </div>
-
       <div class="field">
         <label class="field__label" for="doc-title-input">Titulo <span class="text-tertiary">(opcional)</span></label>
         <input type="text" id="doc-title-input" class="input"
                placeholder="Titulo descritivo do documento..." autocomplete="off">
       </div>
-
       <div class="field">
         <label class="field__label" for="doc-notes-input">Observacoes <span class="text-tertiary">(opcional)</span></label>
         <textarea id="doc-notes-input" class="input"
                   placeholder="Informacoes adicionais sobre este documento..."></textarea>
       </div>
-
       <div id="doc-duplicate-warning" hidden
            style="background: var(--surface-warning, var(--surface-2));
                   border: 1px solid var(--accent); border-radius: var(--radius);
@@ -339,7 +267,6 @@
           </label>
         </div>
       </div>
-
     </div>
     <div class="card__footer">
       <button type="button" class="btn btn--text" id="modal-doc-cancel">Cancelar</button>

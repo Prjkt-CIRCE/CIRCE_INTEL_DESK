@@ -1,12 +1,10 @@
 """
-CIRCE Intel Desk — Schemas Pydantic para Document (RF-007).
-
-Sprint 01-B — Sub-passo B8.
+CIRCE Intel Desk - Schemas Pydantic para Document (RF-007).
+Sprint 01-B - Sub-passo B8.
+AT-03.7: platea_exclude adicionado em DocumentRead.
 """
-
 from datetime import datetime
 from typing import Optional
-
 from pydantic import BaseModel, ConfigDict
 
 
@@ -39,6 +37,7 @@ class DocumentRead(BaseModel):
     sha256_hash: str
     title: Optional[str]
     notes: Optional[str]
+    platea_exclude: bool = False
     imported_at: datetime
     created_at: datetime
     updated_at: datetime

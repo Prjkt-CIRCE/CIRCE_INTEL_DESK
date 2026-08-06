@@ -1,18 +1,16 @@
-/* documents_in_case.js — RF-007, Sprint 01-B sub-passo 02-5 */
+/* documents_in_case.js - RF-007, Sprint 01-B sub-passo 02-5 */
+/* AT-03.7: coluna Platea com toggle [NAO COMPARTILHAR] adicionada */
 (function () {
   "use strict";
 
-  var API_BASE = "/api/documents";
+  var API_BASE  = "/api/documents";
+  var API_CASES = "/api/cases";
 
   var caseId = null;
   var sectionEl, loadingEl, emptyEl, tableEl, tbodyEl, importBtnEl;
   var backdropEl, cancelBtnEl, confirmarBtnEl;
   var fileInputEl, titleInputEl, notesInputEl;
   var dupWarningEl, dupMsgEl, forceDupCbEl;
-
-  // ---------------------------------------------------------------------------
-  // Utilitários
-  // ---------------------------------------------------------------------------
 
   function handleAuthLapse(r) {
     if (r.status === 401 || r.redirected) {
@@ -54,26 +52,78 @@
            " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
   }
 
-  // ---------------------------------------------------------------------------
-  // Renderização
-  // ---------------------------------------------------------------------------
+  // AT-03.7: atualiza badge span sem destruir o botao
+  function updatePlateaBadge(spanEl, excluded) {
+    if (!spanEl) return;
+    if (excluded) {
+      spanEl.className = "badge badge--arquivado";
+      spanEl.style.fontSize = "0.7rem";
+      spanEl.textContent = "[NAO COMPARTILHAR]";
+    } else {
+      spanEl.className = "badge";
+      spanEl.style.fontSize = "0.7rem";
+      spanEl.style.opacity = "0.4";
+      spanEl.textContent = "[COMPARTILHAR]";
+    }
+  }
+
+  function toggleDocPlateaExclude(docId, btnEl, badgeSpanEl) {
+    var currentExcluded = btnEl.dataset.excluded === "1";
+    var novoExclude = !currentExcluded;
+    btnEl.disabled = true;
+
+    fetch(
+      API_CASES + "/" + encodeURIComponent(caseId) +
+      "/items/document/" + encodeURIComponent(docId) +
+      "/platea_exclude",
+      {
+        method: "PATCH",
+        headers: { "Accept": "application/json", "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ exclude: novoExclude })
+      }
+    )
+      .then(function (response) {
+        if (handleAuthLapse(response)) return null;
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function (data) {
+        if (data === null) return;
+        updatePlateaBadge(badgeSpanEl, data.platea_exclude);
+        btnEl.dataset.excluded = data.platea_exclude ? "1" : "0";
+        btnEl.textContent = data.platea_exclude ? "Liberar" : "Excluir";
+        btnEl.title = data.platea_exclude
+          ? "Clique para permitir compartilhamento"
+          : "Clique para excluir da Platea";
+        var msg = data.platea_exclude
+          ? "Documento marcado como [NAO COMPARTILHAR]."
+          : "Documento removido de [NAO COMPARTILHAR].";
+        toast(msg, "success");
+      })
+      .catch(function (err) {
+        console.error("[documents_in_case] erro ao atualizar platea_exclude", err);
+        toast("Erro ao atualizar item.", "error");
+      })
+      .finally(function () {
+        btnEl.disabled = false;
+      });
+  }
 
   function verifyDoc(docId, cell) {
-    cell.textContent = "…";
+    cell.textContent = "...";
     fetch(API_BASE + "/detail/" + docId + "/verify", { credentials: "same-origin" })
       .then(function (r) { if (handleAuthLapse(r)) return null; return r.json(); })
       .then(function (data) {
         if (data === null) return;
         if (data.ok) {
-          cell.innerHTML = '<span style="color:var(--color-success,green)">✓ OK</span>';
+          cell.innerHTML = '<span style="color:var(--color-success,green)">OK</span>';
         } else if (data.error === "file_missing") {
-          cell.innerHTML = '<span style="color:var(--accent)">✗ AUSENTE</span>';
+          cell.innerHTML = '<span style="color:var(--accent)">AUSENTE</span>';
         } else if (data.error === "hash_mismatch") {
-          cell.innerHTML = '<span style="color:var(--accent)">✗ ADULTERADO</span>';
-        } else if (data.error === "not_found") {
-          cell.innerHTML = '<span class="text-tertiary">—</span>';
+          cell.innerHTML = '<span style="color:var(--accent)">ADULTERADO</span>';
         } else {
-          cell.innerHTML = '<span class="text-tertiary">—</span>';
+          cell.innerHTML = '<span class="text-tertiary">-</span>';
         }
       })
       .catch(function () { cell.textContent = "Erro"; });
@@ -95,20 +145,58 @@
       tr.style.borderBottom = "1px solid var(--border-subtle)";
       tr.style.fontSize = "var(--text-sm)";
 
+      var excluded = doc.platea_exclude || false;
+
       var nomeHtml = doc.title
         ? '<strong>' + escapeHtml(doc.title) + '</strong><br><span class="text-tertiary mono" style="font-size:0.75rem;">' + escapeHtml(doc.original_filename) + '</span>'
         : escapeHtml(doc.original_filename);
 
       var badgeHtml = '<span class="badge badge--mono">' + escapeHtml((doc.file_format || "").toUpperCase()) + '</span>';
 
-      var tdNome      = '<td style="padding:var(--space-2) var(--space-3);">' + nomeHtml + '</td>';
-      var tdFormato   = '<td style="padding:var(--space-2) var(--space-3);">' + badgeHtml + '</td>';
-      var tdTamanho   = '<td style="padding:var(--space-2) var(--space-3);" class="mono text-secondary">' + escapeHtml(formatBytes(doc.file_size)) + '</td>';
-      var tdData      = '<td style="padding:var(--space-2) var(--space-3);" class="mono text-secondary">' + escapeHtml(formatDate(doc.imported_at)) + '</td>';
-      var tdInteg     = '<td style="padding:var(--space-2) var(--space-3);" class="mono" data-integ="' + doc.id + '"><button type="button" class="btn btn--text" style="font-size:var(--text-sm);">VERIFICAR</button></td>';
-      var tdAcoes     = '<td style="padding:var(--space-2) 0 var(--space-2) var(--space-3);"><!-- TODO: editar metadados (doc.id=' + doc.id + ') --></td>';
+      var tdNome    = '<td style="padding:var(--space-2) var(--space-3);">' + nomeHtml + '</td>';
+      var tdFormato = '<td style="padding:var(--space-2) var(--space-3);">' + badgeHtml + '</td>';
+      var tdTamanho = '<td style="padding:var(--space-2) var(--space-3);" class="mono text-secondary">' + escapeHtml(formatBytes(doc.file_size)) + '</td>';
+      var tdData    = '<td style="padding:var(--space-2) var(--space-3);" class="mono text-secondary">' + escapeHtml(formatDate(doc.imported_at)) + '</td>';
+      var tdInteg   = '<td style="padding:var(--space-2) var(--space-3);" class="mono" data-integ="' + doc.id + '"><button type="button" class="btn btn--text" style="font-size:var(--text-sm);">VERIFICAR</button></td>';
 
-      tr.innerHTML = tdNome + tdFormato + tdTamanho + tdData + tdInteg + tdAcoes;
+      tr.innerHTML = tdNome + tdFormato + tdTamanho + tdData + tdInteg;
+
+      // Celula Platea (AT-03.7) - badge e botao como elementos separados
+      var tdPlatea = document.createElement("td");
+      tdPlatea.style.cssText = "padding: var(--space-2) var(--space-3); white-space: nowrap;";
+
+      var badgeSpan = document.createElement("span");
+      badgeSpan.style.fontSize = "0.7rem";
+      if (excluded) {
+        badgeSpan.className = "badge badge--arquivado";
+        badgeSpan.textContent = "[NAO COMPARTILHAR]";
+      } else {
+        badgeSpan.className = "badge";
+        badgeSpan.style.opacity = "0.4";
+        badgeSpan.textContent = "[COMPARTILHAR]";
+      }
+
+      var btnPlatea = document.createElement("button");
+      btnPlatea.type = "button";
+      btnPlatea.className = "btn btn--text";
+      btnPlatea.style.cssText = "font-size: 0.75rem; color: var(--text-tertiary); margin-left: var(--space-2);";
+      btnPlatea.dataset.excluded = excluded ? "1" : "0";
+      btnPlatea.textContent = excluded ? "Liberar" : "Excluir";
+      btnPlatea.title = excluded
+        ? "Clique para permitir compartilhamento"
+        : "Clique para excluir da Platea";
+
+      btnPlatea.addEventListener("click", function () {
+        toggleDocPlateaExclude(doc.id, btnPlatea, badgeSpan);
+      });
+
+      tdPlatea.appendChild(badgeSpan);
+      tdPlatea.appendChild(btnPlatea);
+      tr.appendChild(tdPlatea);
+
+      var tdAcoes = document.createElement("td");
+      tdAcoes.style.cssText = "padding: var(--space-2) 0 var(--space-2) var(--space-3);";
+      tr.appendChild(tdAcoes);
 
       var integCell = tr.querySelector('[data-integ="' + doc.id + '"]');
       if (integCell) {
@@ -120,10 +208,6 @@
       tbodyEl.appendChild(tr);
     });
   }
-
-  // ---------------------------------------------------------------------------
-  // Carga
-  // ---------------------------------------------------------------------------
 
   function loadDocuments() {
     if (loadingEl) loadingEl.hidden = false;
@@ -146,10 +230,6 @@
         toast("Erro ao carregar documentos.", "error");
       });
   }
-
-  // ---------------------------------------------------------------------------
-  // Modal de importação
-  // ---------------------------------------------------------------------------
 
   function openImportModal() {
     if (fileInputEl)   fileInputEl.value   = "";
@@ -194,7 +274,7 @@
         if (res.status === 409) {
           var detail = res.json && res.json.detail ? res.json.detail : {};
           if (dupWarningEl) dupWarningEl.hidden = false;
-          if (dupMsgEl) dupMsgEl.textContent = "Já existe: " + (detail.existing_document_name || "—");
+          if (dupMsgEl) dupMsgEl.textContent = "Ja existe: " + (detail.existing_document_name || "-");
           return;
         }
         if (!res.ok) {
@@ -214,10 +294,6 @@
       });
   }
 
-  // ---------------------------------------------------------------------------
-  // Setup
-  // ---------------------------------------------------------------------------
-
   function setup() {
     sectionEl = document.getElementById("documents-section");
     if (!sectionEl) return;
@@ -227,23 +303,23 @@
     caseId = parseInt(rawId, 10);
     if (isNaN(caseId)) return;
 
-    loadingEl     = document.getElementById("doc-loading");
-    emptyEl       = document.getElementById("doc-empty");
-    tableEl       = document.getElementById("doc-table");
-    tbodyEl       = document.getElementById("doc-tbody");
-    importBtnEl   = document.getElementById("doc-import-btn");
-    backdropEl    = document.getElementById("modal-doc-import-backdrop");
-    cancelBtnEl   = document.getElementById("modal-doc-cancel");
+    loadingEl      = document.getElementById("doc-loading");
+    emptyEl        = document.getElementById("doc-empty");
+    tableEl        = document.getElementById("doc-table");
+    tbodyEl        = document.getElementById("doc-tbody");
+    importBtnEl    = document.getElementById("doc-import-btn");
+    backdropEl     = document.getElementById("modal-doc-import-backdrop");
+    cancelBtnEl    = document.getElementById("modal-doc-cancel");
     confirmarBtnEl = document.getElementById("modal-doc-confirmar");
-    fileInputEl   = document.getElementById("doc-file-input");
-    titleInputEl  = document.getElementById("doc-title-input");
-    notesInputEl  = document.getElementById("doc-notes-input");
-    dupWarningEl  = document.getElementById("doc-duplicate-warning");
-    dupMsgEl      = document.getElementById("doc-duplicate-msg");
-    forceDupCbEl  = document.getElementById("doc-force-duplicate");
+    fileInputEl    = document.getElementById("doc-file-input");
+    titleInputEl   = document.getElementById("doc-title-input");
+    notesInputEl   = document.getElementById("doc-notes-input");
+    dupWarningEl   = document.getElementById("doc-duplicate-warning");
+    dupMsgEl       = document.getElementById("doc-duplicate-msg");
+    forceDupCbEl   = document.getElementById("doc-force-duplicate");
 
-    if (importBtnEl)   importBtnEl.addEventListener("click", openImportModal);
-    if (cancelBtnEl)   cancelBtnEl.addEventListener("click", closeImportModal);
+    if (importBtnEl)    importBtnEl.addEventListener("click", openImportModal);
+    if (cancelBtnEl)    cancelBtnEl.addEventListener("click", closeImportModal);
     if (confirmarBtnEl) confirmarBtnEl.addEventListener("click", submitImport);
     if (backdropEl) {
       backdropEl.addEventListener("click", function (e) {

@@ -1,27 +1,10 @@
 /* ============================================================
    CIRCE Intel Desk - case_detail.js
-   Tela de detalhe de um caso (RF-001) - Sprint 01, Bloco 8, Sub-passo 8.6.
-   Vinculos pessoa-caso (RF-003) - Sprint 01, Bloco 10, Sub-passo 10.5.
+   RF-001 (detalhe do caso) - Sprint 01, Bloco 8.6.
+   RF-003 (vinculos pessoa-caso) - Sprint 01, Bloco 10.5.
    AT-03.6: toggle de compartilhamento na Platea (platea_status).
-
-   Decisoes do operador no 8.6 (preservadas):
-     - (a) Renderizacao SPA-leve: busca GET /api/cases/{id} e popula slots.
-     - (b/D56) "Editar" navega para /cases?edit={id}.
-     - (c) "Reativar" fora do escopo (D48).
-     - (d) Voltar: link "< CASOS" + atalho Esc.
-
-   Adicoes do 10.5 (RF-003):
-     - loadLinks(): GET /api/links/person-case?case_id=N, renderiza tabela.
-     - renderLinksTable(): popula #links-tbody; alterna empty/loading/table.
-     - Modal #modal-vincular-pessoa: carrega <select> de pessoas ativas.
-     - submitVincular(): POST /api/links/person-case; trata 409 (CA-003.6).
-     - removeLink(linkId): DELETE /api/links/person-case/{id} apos confirm().
-
-   AT-03.6 (Platea):
-     - plateaStatusBadgeHtml(): badge visual para platea_status.
-     - renderPlateaStatus(): sincroniza checkbox + badge com estado da API.
-     - togglePlatea(): PATCH /api/cases/{id} com platea_status alternado.
-     - Auditoria automatica via case_service (changed_fields: [platea_status]).
+   AT-03.7: toggle [NAO COMPARTILHAR] por item (person_link / document).
+   Fix: label do botao Excluir/Liberar atualizado dentro do .then().
    ============================================================ */
 
 (function () {
@@ -31,7 +14,6 @@
   var API_LINKS   = "/api/links/person-case";
   var API_PERSONS = "/api/persons";
 
-  // ---------- Rotulos legiveis ----------
   var ROLE_LABELS = {
     suspeito:     "Suspeito",
     investigado:  "Investigado",
@@ -50,21 +32,18 @@
     validated: "Validado"
   };
 
-  // ---------- DOM refs - caso ----------
   var loadingEl      = null;
   var notFoundEl     = null;
   var contentEl      = null;
   var archivedNoteEl = null;
   var editBtnEl      = null;
 
-  // ---------- DOM refs - vinculos ----------
   var linksLoadingEl   = null;
   var linksEmptyEl     = null;
   var linksTableWrapEl = null;
   var linksTbodyEl     = null;
   var btnVincularEl    = null;
 
-  // ---------- DOM refs - modal ----------
   var modalBackdropEl     = null;
   var modalCloseEl        = null;
   var modalCancelEl       = null;
@@ -76,14 +55,12 @@
   var vpReliabilitySelect = null;
   var vpNotesInput        = null;
 
-  // ---------- DOM refs - platea (AT-03.6) ----------
   var plateaCheckboxEl = null;
   var plateaSavingEl   = null;
 
   var caseId = null;
-  var currentPlateaStatus = "none"; // cache local do estado atual
+  var currentPlateaStatus = "none";
 
-  // ---------- Utilitarios de data ----------
   var MESES = ["JAN","FEV","MAR","ABR","MAI","JUN",
                "JUL","AGO","SET","OUT","NOV","DEZ"];
 
@@ -110,7 +87,16 @@
          + " " + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
   }
 
-  // ---------- Badge de status do caso ----------
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
   function statusBadgeHtml(status) {
     var map = {
       "active":   { cls: "badge--ativo",     txt: "[ATIVO]" },
@@ -120,7 +106,6 @@
     return '<span class="badge ' + entry.cls + '">' + entry.txt + "</span>";
   }
 
-  // ---------- Badge de platea_status (AT-03.6) ----------
   function plateaStatusBadgeHtml(plateaStatus) {
     var map = {
       "none":         { cls: "badge--arquivado", txt: "[NAO COMPARTILHADO]" },
@@ -132,36 +117,31 @@
     return '<span class="badge ' + entry.cls + '">' + entry.txt + "</span>";
   }
 
-  // ---------- Sincroniza checkbox + badge com o estado atual (AT-03.6) ----------
+  function plateaExcludeBadgeHtml(excluded) {
+    if (excluded) {
+      return '<span class="badge badge--arquivado" style="font-size:0.7rem;">[NAO COMPARTILHAR]</span>';
+    }
+    return '<span class="badge" style="font-size:0.7rem; opacity:0.4;">[COMPARTILHAR]</span>';
+  }
+
   function renderPlateaStatus(plateaStatus) {
     currentPlateaStatus = plateaStatus || "none";
-
-    // Checkbox: marcado se shared ou pending_sync
     if (plateaCheckboxEl) {
       plateaCheckboxEl.checked = (currentPlateaStatus === "shared" || currentPlateaStatus === "pending_sync");
     }
-
-    // Badge
     var badgeSlot = contentEl ? contentEl.querySelector('[data-field="platea_status_badge"]') : null;
     if (badgeSlot) badgeSlot.innerHTML = plateaStatusBadgeHtml(currentPlateaStatus);
   }
 
-  // ---------- Toggle de compartilhamento na Platea (AT-03.6) ----------
   function togglePlatea() {
     if (!plateaCheckboxEl) return;
-
     var novoStatus = plateaCheckboxEl.checked ? "shared" : "none";
-
-    // Feedback visual imediato
     if (plateaSavingEl) plateaSavingEl.hidden = false;
     if (plateaCheckboxEl) plateaCheckboxEl.disabled = true;
 
     fetch(API_CASES + "/" + encodeURIComponent(caseId), {
       method: "PATCH",
-      headers: {
-        "Accept":       "application/json",
-        "Content-Type": "application/json"
-      },
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
       credentials: "same-origin",
       body: JSON.stringify({ platea_status: novoStatus })
     })
@@ -180,7 +160,6 @@
       })
       .catch(function (err) {
         console.error("[case_detail] erro ao atualizar platea_status", err);
-        // Reverte o checkbox para o estado anterior
         renderPlateaStatus(currentPlateaStatus);
         toast("error", "Erro", "Nao foi possivel atualizar o status da Platea.");
       })
@@ -190,7 +169,55 @@
       });
   }
 
-  // ---------- Guarda de sessao expirada (D54) ----------
+  // ================================================================
+  // AT-03.7: toggle [NAO COMPARTILHAR] por item
+  // ================================================================
+
+  function toggleItemPlateaExclude(itemType, itemId, currentExcluded, badgeCellEl, btnEl) {
+    var novoExclude = !currentExcluded;
+    if (btnEl) btnEl.disabled = true;
+
+    fetch(
+      API_CASES + "/" + encodeURIComponent(caseId) +
+      "/items/" + encodeURIComponent(itemType) +
+      "/" + encodeURIComponent(itemId) +
+      "/platea_exclude",
+      {
+        method: "PATCH",
+        headers: { "Accept": "application/json", "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ exclude: novoExclude })
+      }
+    )
+      .then(function (response) {
+        if (handleAuthLapse(response)) return null;
+        if (!response.ok) throw new Error("HTTP " + response.status);
+        return response.json();
+      })
+      .then(function (data) {
+        if (data === null) return;
+        if (badgeCellEl) badgeCellEl.innerHTML = plateaExcludeBadgeHtml(data.platea_exclude);
+        if (btnEl) {
+          btnEl.dataset.excluded = data.platea_exclude ? "1" : "0";
+          btnEl.textContent      = data.platea_exclude ? "Liberar" : "Excluir";
+          btnEl.title            = data.platea_exclude
+            ? "Clique para permitir compartilhamento"
+            : "Clique para excluir da Platea";
+        }
+        var msg = data.platea_exclude
+          ? "Item marcado como [NAO COMPARTILHAR]."
+          : "Item removido de [NAO COMPARTILHAR].";
+        toast("success", "Platea", msg);
+      })
+      .catch(function (err) {
+        console.error("[case_detail] erro ao atualizar platea_exclude", err);
+        toast("error", "Erro", "Nao foi possivel atualizar o item.");
+      })
+      .finally(function () {
+        if (btnEl) btnEl.disabled = false;
+      });
+  }
+
   function handleAuthLapse(response) {
     var isHtmlRedirect =
       response.redirected ||
@@ -203,14 +230,12 @@
     return false;
   }
 
-  // ---------- Helper de toast (D53) ----------
   function toast(type, title, msg) {
     if (window.CIRCE && window.CIRCE.toast && window.CIRCE.toast[type]) {
       window.CIRCE.toast[type](title, msg);
     }
   }
 
-  // ---------- Slots de campo do caso ----------
   function setField(field, value) {
     if (!contentEl) return;
     var el = contentEl.querySelector('[data-field="' + field + '"]');
@@ -219,7 +244,6 @@
     el.textContent = txt;
   }
 
-  // ---------- Estados da tela principal ----------
   function showLoading() {
     if (loadingEl) loadingEl.hidden = false;
     if (notFoundEl) notFoundEl.hidden = true;
@@ -238,7 +262,6 @@
     if (contentEl)  contentEl.hidden = false;
   }
 
-  // ---------- Renderizar caso ----------
   function renderCase(c) {
     setField("case_code", c.case_code);
     setField("name", c.name);
@@ -259,7 +282,6 @@
     setField("updated_at", formatDateTime(c.updated_at));
     setField("updated_by", c.updated_by);
 
-    // Platea (AT-03.6)
     renderPlateaStatus(c.platea_status);
 
     if (archivedNoteEl) archivedNoteEl.hidden = (c.status !== "archived");
@@ -273,7 +295,6 @@
     showContent();
   }
 
-  // ---------- Carregar caso ----------
   function loadCase() {
     showLoading();
     fetch(API_CASES + "/" + encodeURIComponent(caseId), {
@@ -300,7 +321,7 @@
   }
 
   // ================================================================
-  // VINCULOS - RF-003, Bloco 10.5
+  // VINCULOS - RF-003 + AT-03.7
   // ================================================================
 
   function linksShowLoading() {
@@ -321,16 +342,6 @@
     if (linksTableWrapEl) linksTableWrapEl.hidden  = false;
   }
 
-  function escapeHtml(str) {
-    if (str === null || str === undefined) return "";
-    return String(str)
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  }
-
   function renderLinksTable(links) {
     if (!linksTbodyEl) return;
 
@@ -339,12 +350,15 @@
       return;
     }
 
-    var rows = links.map(function (lk) {
+    linksTbodyEl.innerHTML = "";
+
+    links.forEach(function (lk) {
       var roleLabel        = ROLE_LABELS[lk.role_in_case] || lk.role_in_case || "-";
       var reliabilityLabel = RELIABILITY_LABELS[lk.reliability_level] || lk.reliability_level || "-";
       var personName       = lk.person_name || ("id " + lk.person_id);
       var source           = lk.source || "-";
       var linkId           = lk.id;
+      var excluded         = lk.platea_exclude || false;
 
       var tr = document.createElement("tr");
       tr.style.borderBottom = "1px solid var(--border, #2C2E38)";
@@ -362,20 +376,47 @@
         "</td>" +
         '<td class="text-secondary" style="padding: var(--space-2) var(--space-3); font-size: 0.8rem; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + escapeHtml(source) + '">' +
           escapeHtml(source) +
-        "</td>" +
-        '<td style="padding: var(--space-2) 0 var(--space-2) var(--space-3); white-space: nowrap;">' +
-          '<button type="button" class="btn btn--text" style="font-size: 0.8rem; color: var(--text-tertiary);" data-remove-link="' + linkId + '">Remover</button>' +
         "</td>";
 
-      tr.querySelector('[data-remove-link]').addEventListener("click", function () {
-        removeLink(linkId, tr);
+      // Celula Platea com badge + botao
+      var tdPlatea = document.createElement("td");
+      tdPlatea.style.cssText = "padding: var(--space-2) var(--space-3); white-space: nowrap;";
+      tdPlatea.innerHTML = plateaExcludeBadgeHtml(excluded);
+
+      var btnPlatea = document.createElement("button");
+      btnPlatea.type = "button";
+      btnPlatea.className = "btn btn--text";
+      btnPlatea.style.cssText = "font-size: 0.75rem; color: var(--text-tertiary); margin-left: var(--space-2);";
+      btnPlatea.dataset.excluded = excluded ? "1" : "0";
+      btnPlatea.textContent = excluded ? "Liberar" : "Excluir";
+      btnPlatea.title = excluded
+        ? "Clique para permitir compartilhamento"
+        : "Clique para excluir da Platea";
+
+      btnPlatea.addEventListener("click", function () {
+        var isExcluded = btnPlatea.dataset.excluded === "1";
+        toggleItemPlateaExclude("person_link", linkId, isExcluded, tdPlatea, btnPlatea);
       });
 
-      return tr;
+      tdPlatea.appendChild(btnPlatea);
+      tr.appendChild(tdPlatea);
+
+      var tdAcoes = document.createElement("td");
+      tdAcoes.style.cssText = "padding: var(--space-2) 0 var(--space-2) var(--space-3); white-space: nowrap;";
+      var btnRemover = document.createElement("button");
+      btnRemover.type = "button";
+      btnRemover.className = "btn btn--text";
+      btnRemover.style.cssText = "font-size: 0.8rem; color: var(--text-tertiary);";
+      btnRemover.textContent = "Remover";
+      btnRemover.addEventListener("click", function () {
+        removeLink(linkId, tr);
+      });
+      tdAcoes.appendChild(btnRemover);
+      tr.appendChild(tdAcoes);
+
+      linksTbodyEl.appendChild(tr);
     });
 
-    linksTbodyEl.innerHTML = "";
-    rows.forEach(function (tr) { linksTbodyEl.appendChild(tr); });
     linksShowTable();
   }
 
@@ -560,13 +601,11 @@
       });
   }
 
-  // ---------- Extrai id numerico da URL /cases/{id} ----------
   function parseCaseIdFromPath() {
     var m = window.location.pathname.match(/\/cases\/(\d+)\b/);
     return m ? parseInt(m[1], 10) : null;
   }
 
-  // ---------- Inicializacao ----------
   function setup() {
     contentEl = document.getElementById("case-detail-content");
     loadingEl = document.getElementById("case-detail-loading");
@@ -576,14 +615,12 @@
     archivedNoteEl = document.getElementById("case-detail-archived-note");
     editBtnEl      = document.getElementById("case-detail-edit");
 
-    // Refs de vinculos
     linksLoadingEl   = document.getElementById("links-loading");
     linksEmptyEl     = document.getElementById("links-empty");
     linksTableWrapEl = document.getElementById("links-table-wrap");
     linksTbodyEl     = document.getElementById("links-tbody");
     btnVincularEl    = document.getElementById("btn-vincular-pessoa");
 
-    // Refs do modal
     modalBackdropEl     = document.getElementById("modal-vincular-backdrop");
     modalCloseEl        = document.getElementById("modal-vincular-close");
     modalCancelEl       = document.getElementById("modal-vincular-cancel");
@@ -595,14 +632,12 @@
     vpReliabilitySelect = document.getElementById("vp-reliability-select");
     vpNotesInput        = document.getElementById("vp-notes-input");
 
-    // Refs da Platea (AT-03.6)
     plateaCheckboxEl = document.getElementById("platea-checkbox");
     plateaSavingEl   = document.getElementById("platea-saving");
 
     caseId = parseCaseIdFromPath();
     if (caseId === null || isNaN(caseId)) { showNotFound(); return; }
 
-    // Atalho Esc
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") {
         if (modalBackdropEl && modalBackdropEl.getAttribute("data-open") === "true") {
@@ -614,22 +649,15 @@
       }
     });
 
-    // Botao "Vincular pessoa"
-    if (btnVincularEl) btnVincularEl.addEventListener("click", modalOpen);
-
-    // Fechar modal
-    if (modalCloseEl)  modalCloseEl.addEventListener("click", modalClose);
-    if (modalCancelEl) modalCancelEl.addEventListener("click", modalClose);
+    if (btnVincularEl)   btnVincularEl.addEventListener("click", modalOpen);
+    if (modalCloseEl)    modalCloseEl.addEventListener("click", modalClose);
+    if (modalCancelEl)   modalCancelEl.addEventListener("click", modalClose);
     if (modalBackdropEl) {
       modalBackdropEl.addEventListener("click", function (e) {
         if (e.target === modalBackdropEl) modalClose();
       });
     }
-
-    // Confirmar vinculo
     if (modalConfirmarEl) modalConfirmarEl.addEventListener("click", submitVincular);
-
-    // Toggle da Platea (AT-03.6)
     if (plateaCheckboxEl) plateaCheckboxEl.addEventListener("change", togglePlatea);
 
     loadCase();
