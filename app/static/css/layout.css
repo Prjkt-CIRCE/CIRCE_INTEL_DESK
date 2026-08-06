@@ -1,28 +1,25 @@
 /* ============================================================
-   CIRCE Intel Desk — Layout
-   Shell da aplicação: header, command bar, área de conteúdo, status bar.
+   CIRCE Intel Desk - Layout
+   Shell da aplicacao: header, command bar, area de conteudo, status bar.
    Depende de tokens.css e base.css (carregados antes deste arquivo).
    ============================================================ */
 
 /* ============================================================
-   Estrutura geral — grid vertical de altura total da viewport.
-   Header fixo no topo, status bar fixa na base, conteúdo central
-   ocupa o restante e rola verticalmente quando necessário.
+   Estrutura geral.
+   Header fixo no topo, status bar fixa no rodape da viewport,
+   conteudo central ocupa o restante e rola verticalmente.
    ============================================================ */
 
 .app-shell {
-  display: grid;
-  grid-template-rows:
-    var(--header-height)
-    var(--command-bar-height)
-    1fr
-    var(--status-bar-height);
-  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   width: 100%;
+  padding-bottom: var(--status-bar-height); /* reserva espaco para a status bar fixa */
 }
 
 /* ============================================================
-   Header — identificador do sistema, navegação, identidade do operador.
+   Header
    ============================================================ */
 
 .app-header {
@@ -33,6 +30,8 @@
   padding: 0 var(--space-5);
   background-color: var(--bg-base);
   border-bottom: var(--border-width-base) solid var(--border-subtle);
+  position: sticky;
+  top: 0;
   z-index: var(--z-header);
 }
 
@@ -94,9 +93,7 @@
 }
 
 /* ============================================================
-   Command bar — caixa de busca / atalho Ctrl+K.
-   No Bloco 6 vira disparador do command palette.
-   Por enquanto é apenas placeholder visual.
+   Command bar
    ============================================================ */
 
 .app-command-bar {
@@ -106,6 +103,9 @@
   padding: 0 var(--space-5);
   background-color: var(--bg-elevated);
   border-bottom: var(--border-width-base) solid var(--border-subtle);
+  position: sticky;
+  top: var(--header-height);
+  z-index: calc(var(--z-header) - 1);
 }
 
 .app-command-bar__prompt {
@@ -143,12 +143,11 @@
 }
 
 /* ============================================================
-   Área de conteúdo — onde as páginas renderizam.
-   Rola verticalmente quando o conteúdo excede a altura disponível.
+   Area de conteudo
    ============================================================ */
 
 .app-content {
-  overflow-y: auto;
+  flex: 1;
   padding: var(--space-5);
   background-color: var(--bg-base);
 }
@@ -192,8 +191,8 @@
 }
 
 /* ============================================================
-   Status bar — fixa na base, persistente em todas as páginas.
-   Indicadores: relógio, criptografia, operador, workspace.
+   Status bar - FIXA no rodape da viewport.
+   Sempre visivel independente do conteudo ou scroll.
    ============================================================ */
 
 .app-status-bar {
@@ -207,6 +206,10 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   color: var(--text-tertiary);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: var(--z-status-bar);
 }
 
@@ -233,7 +236,6 @@
   color: var(--text-secondary);
 }
 
-/* Separador vertical entre grupos da status bar. */
 .app-status-bar__separator {
   width: var(--border-width-base);
   height: var(--space-3);
