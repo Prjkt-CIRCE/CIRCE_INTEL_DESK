@@ -1,15 +1,13 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 {# ============================================================
-   Template base — CIRCE Intel Desk
-   Sprint 0.5 + Bloco 6.8.
+   Template base -- CIRCE Intel Desk
+   WORKBENCH-01: novo shell com sidebar + context header + canvas.
 
    <body> data-attributes consumidos por scripts da shell:
-   - data-workspace          : workspace ativo (ADR-010 Proposed).
+   - data-workspace          : workspace ativo (ADR-010).
    - data-page-public        : "false" em rotas autenticadas;
-                               usado por inactivity_lock.js como
-                               guarda de early return.
-   - data-inactivity-minutes : minutos até bloqueio por inatividade
-                               (D11/D33, Bloco 6). 0 = nunca bloquear.
+                               usado por inactivity_lock.js.
+   - data-inactivity-minutes : minutos ate bloqueio (D11/D33).
    ============================================================ #}
 <html lang="pt-BR" data-theme="dark">
 <head>
@@ -22,9 +20,9 @@
   <link rel="stylesheet" href="/static/css/tokens.css" />
   <link rel="stylesheet" href="/static/css/base.css" />
   <link rel="stylesheet" href="/static/css/components.css" />
-  <link rel="stylesheet" href="/static/css/layout.css?v=ws1" />
+  <link rel="stylesheet" href="/static/css/layout.css?v=wb01" />
   <link rel="icon" href="data:," />
-  {# theme.js e accent.js rodam síncronos no <head> para evitar FOUC. #}
+  {# theme.js e accent.js rodam sincronos no <head> para evitar FOUC. #}
   <script src="/static/js/theme.js"></script>
   <script src="/static/js/accent.js"></script>
   {% block extra_head %}{% endblock %}
@@ -33,34 +31,49 @@
   data-workspace="{{ workspace_id|default('default') }}"
   data-page-public="false"
   data-inactivity-minutes="{{ inactivity_minutes|default(0) }}"
+  data-sidebar-collapsed="false"
 >
   <div class="app-shell">
-    {% include "_header.html" %}
-    <div class="app-command-bar">
-      <span class="app-command-bar__prompt">&gt;</span>
-      <input
-        type="text"
-        class="app-command-bar__input"
-        id="app-command-bar-input" name="command_bar"
-        placeholder="Digite um comando ou pesquise (Ctrl+K)"
-        aria-label="Barra de comando"
-        readonly
-        onclick="window.CIRCE && window.CIRCE.palette && window.CIRCE.palette.open()"
-      />
-      <span class="app-command-bar__hint">Ctrl+K</span>
-    </div>
-    {% include "_workspace_bar.html" %}
-    <main class="app-content" role="main">
-      <div class="app-content__page">
-        {% block content %}{% endblock %}
+
+    {# Sidebar global persistente #}
+    {% include "_sidebar.html" %}
+
+    {# Regiao direita: context header + canvas + status bar #}
+    <div class="app-main">
+
+      {# Context header -- substitui header horizontal + command bar #}
+      {% include "_header.html" %}
+
+      {# Workspace bar preservada -- contratos ADR-010 intactos #}
+      {% include "_workspace_bar.html" %}
+
+      {# Canvas fluido + inspector (inspector ativado por pagina em WB-02+) #}
+      <div class="app-content-area">
+        <main class="app-content" role="main">
+          <div class="app-content__page">
+            {% block content %}{% endblock %}
+          </div>
+        </main>
+        {% if show_inspector %}
+        <aside class="app-inspector" id="app-inspector" aria-label="Inspector contextual">
+          <div class="app-inspector__empty">Nenhum item selecionado</div>
+        </aside>
+        {% endif %}
       </div>
-    </main>
-    {% include "_status_bar.html" %}
+
+      {# Status bar preservada #}
+      {% include "_status_bar.html" %}
+
+    </div>
+
   </div>
+
   {% include "_first_run.html" %}
   {% include "_command_palette.html" %}
   {% include "_shortcuts_modal.html" %}
+
   <script src="/static/js/status_bar.js" defer></script>
+  <script src="/static/js/sidebar.js" defer></script>
   <script src="/static/js/header_toggles.js" defer></script>
   <script src="/static/js/first_run.js" defer></script>
   <script src="/static/js/command_palette.js?v=fts5" defer></script>

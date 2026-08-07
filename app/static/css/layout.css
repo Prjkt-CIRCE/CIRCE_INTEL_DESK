@@ -1,80 +1,353 @@
-/* ============================================================
-   CIRCE Intel Desk - Layout
-   Shell da aplicacao: header, command bar, area de conteudo, status bar.
+﻿/* ============================================================
+   CIRCE Intel Desk -- Layout
+   WORKBENCH-01: shell Grid com sidebar + context header + canvas.
    Depende de tokens.css e base.css (carregados antes deste arquivo).
    ============================================================ */
 
 /* ============================================================
-   Estrutura geral.
-   Header fixo no topo, status bar fixa no rodape da viewport,
-   conteudo central ocupa o restante e rola verticalmente.
+   Reset de box-sizing e scroll
    ============================================================ */
 
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  width: 100%;
-  padding-bottom: var(--status-bar-height); /* reserva espaco para a status bar fixa */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* scroll e controlado por regioes internas */
 }
 
 /* ============================================================
-   Header
+   Shell principal -- CSS Grid
+   Colunas: sidebar | area-principal
+   A sidebar ocupa altura total da viewport.
+   A area-principal empilha: context-header / workspace-bar / canvas / status-bar
+   ============================================================ */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: 1fr;
+  height: 100vh;
+  width: 100%;
+  transition: grid-template-columns var(--transition-mid);
+}
+
+/* Estado recolhido: troca a largura da coluna da sidebar */
+.app-shell--sidebar-collapsed {
+  grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+}
+
+/* ============================================================
+   Sidebar
+   ============================================================ */
+
+.app-sidebar {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: var(--sidebar-width);
+  background-color: var(--bg-elevated);
+  border-right: var(--border-width-base) solid var(--border-subtle);
+  overflow: hidden;
+  position: sticky;
+  top: 0;
+  transition: width var(--transition-mid);
+  z-index: var(--z-header);
+}
+
+.app-shell--sidebar-collapsed .app-sidebar {
+  width: var(--sidebar-collapsed-width);
+}
+
+/* Marca CIRCE // INTEL DESK */
+.app-sidebar__brand {
+  display: flex;
+  align-items: center;
+  height: var(--context-header-height);
+  padding: 0 var(--space-4);
+  border-bottom: var(--border-width-base) solid var(--border-subtle);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.app-sidebar__brand-text {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity var(--transition-fast);
+}
+
+.app-sidebar__brand-icon {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--accent);
+  white-space: nowrap;
+  opacity: 0;
+  width: 0;
+  transition: opacity var(--transition-fast);
+  display: none;
+}
+
+.app-shell--sidebar-collapsed .app-sidebar__brand-text {
+  opacity: 0;
+  width: 0;
+}
+
+.app-shell--sidebar-collapsed .app-sidebar__brand-icon {
+  opacity: 1;
+  width: auto;
+  display: block;
+}
+
+/* Navegacao principal */
+.app-sidebar__nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-3) 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Item de navegacao */
+.app-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  min-height: 36px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  text-decoration: none;
+  border-left: var(--border-width-strong) solid transparent;
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-sidebar__item:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.app-sidebar__item--active {
+  color: var(--text-primary);
+  background-color: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+
+/* Icone SVG do item */
+.app-sidebar__icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+/* Label do item */
+.app-sidebar__label {
+  opacity: 1;
+  transition: opacity var(--transition-fast);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-shell--sidebar-collapsed .app-sidebar__label {
+  opacity: 0;
+  width: 0;
+}
+
+/* Separador entre grupos de navegacao */
+.app-sidebar__separator {
+  height: var(--border-width-base);
+  background-color: var(--border-subtle);
+  margin: var(--space-2) var(--space-4);
+  flex-shrink: 0;
+}
+
+/* Rodape da sidebar: Configuracoes + indicador de ambiente */
+.app-sidebar__footer {
+  flex-shrink: 0;
+  padding: var(--space-2) 0;
+  border-top: var(--border-width-base) solid var(--border-subtle);
+}
+
+.app-sidebar__env {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  overflow: hidden;
+}
+
+.app-sidebar__env-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--success);
+  flex-shrink: 0;
+}
+
+.app-sidebar__env-text {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity var(--transition-fast);
+}
+
+.app-shell--sidebar-collapsed .app-sidebar__env-text {
+  opacity: 0;
+  width: 0;
+}
+
+/* Botao de toggle da sidebar */
+.app-sidebar__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 36px;
+  background: none;
+  border: none;
+  border-top: var(--border-width-base) solid var(--border-subtle);
+  cursor: pointer;
+  color: var(--text-tertiary);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    transform var(--transition-mid);
+  flex-shrink: 0;
+}
+.app-sidebar__toggle:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.app-shell--sidebar-collapsed .app-sidebar__toggle {
+  transform: rotate(180deg);
+}
+
+.app-sidebar__toggle svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Tooltip no modo recolhido */
+.app-sidebar__item[title]:not(.app-sidebar__item--active)::after {
+  content: none; /* tooltip via JS -- ver sidebar.js */
+}
+
+/* ============================================================
+   Area principal (direita da sidebar)
+   ============================================================ */
+
+.app-main {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-width: 0; /* evita overflow em grid */
+  overflow: hidden;
+}
+
+/* ============================================================
+   Context header
+   Substitui o header horizontal anterior.
    ============================================================ */
 
 .app-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: var(--header-height);
+  height: var(--context-header-height);
   padding: 0 var(--space-5);
   background-color: var(--bg-base);
   border-bottom: var(--border-width-base) solid var(--border-subtle);
-  position: sticky;
-  top: 0;
-  z-index: var(--z-header);
+  flex-shrink: 0;
+  position: relative;
+  z-index: calc(var(--z-header) - 1);
 }
 
-.app-header__brand {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.15em;
-  text-transform: uppercase;
+.app-header__context {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.app-header__context-label {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header__context-sub {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
   white-space: nowrap;
 }
 
-.app-header__nav {
+/* Lançador compacto do Ctrl+K (centro/direita) */
+.app-header__palette-trigger {
   display: flex;
   align-items: center;
-  gap: var(--space-5);
-  flex: 1;
-  justify-content: center;
-}
-
-.app-header__nav-item {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: var(--space-2) var(--space-1);
-  border-bottom: var(--border-width-strong) solid transparent;
-  transition: color var(--transition-fast),
-              border-color var(--transition-fast);
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--bg-elevated);
+  border: var(--border-width-base) solid var(--border-subtle);
+  border-radius: var(--radius-md);
   cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    background-color var(--transition-fast);
+  white-space: nowrap;
 }
 
-.app-header__nav-item:hover {
+.app-header__palette-trigger:hover {
   color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
-.app-header__nav-item--active {
-  color: var(--text-primary);
-  border-bottom-color: var(--accent);
+.app-header__palette-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  padding: 1px var(--space-1);
+  border: var(--border-width-thin) solid var(--border-subtle);
+  border-radius: var(--radius-sm);
 }
 
+/* Meta: operador, CRYPT, tema, saida */
 .app-header__meta {
   display: flex;
   align-items: center;
@@ -82,6 +355,7 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
 .app-header__meta-item {
@@ -93,70 +367,23 @@
 }
 
 /* ============================================================
-   Command bar
-   ============================================================ */
-
-.app-command-bar {
-  display: flex;
-  align-items: center;
-  height: var(--command-bar-height);
-  padding: 0 var(--space-5);
-  background-color: var(--bg-elevated);
-  border-bottom: var(--border-width-base) solid var(--border-subtle);
-  position: sticky;
-  top: var(--header-height);
-  z-index: calc(var(--z-header) - 1);
-}
-
-.app-command-bar__prompt {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-base);
-  color: var(--text-tertiary);
-  margin-right: var(--space-2);
-  user-select: none;
-}
-
-.app-command-bar__input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-base);
-  color: var(--text-primary);
-  padding: var(--space-2) 0;
-}
-
-.app-command-bar__input::placeholder {
-  color: var(--text-tertiary);
-}
-
-.app-command-bar__hint {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  color: var(--text-tertiary);
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-width-thin) solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  margin-left: var(--space-3);
-  user-select: none;
-}
-
-/* ============================================================
-   Area de conteudo
+   Canvas fluido
    ============================================================ */
 
 .app-content {
   flex: 1;
   padding: var(--space-5);
   background-color: var(--bg-base);
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .app-content__page {
-  max-width: 1400px;
-  margin: 0 auto;
+  /* Sem max-width global -- canvas e fluido conforme SPEC WB-01 */
+  width: 100%;
 }
 
+/* Helpers de pagina preservados */
 .app-content__page-header {
   margin-bottom: var(--space-5);
   padding-bottom: var(--space-3);
@@ -191,8 +418,11 @@
 }
 
 /* ============================================================
-   Status bar - FIXA no rodape da viewport.
-   Sempre visivel independente do conteudo ou scroll.
+   Status bar -- FIXA no rodape da area principal.
+   Preservada integralmente do shell anterior.
+   left e right agora referem a area principal, nao a viewport.
+   Ajuste via JS em sidebar.js quando sidebar colapsa/expande,
+   ou via position:sticky dentro do flex da .app-main.
    ============================================================ */
 
 .app-status-bar {
@@ -206,10 +436,7 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   color: var(--text-tertiary);
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  flex-shrink: 0;
   z-index: var(--z-status-bar);
 }
 
@@ -240,4 +467,77 @@
   width: var(--border-width-base);
   height: var(--space-3);
   background-color: var(--border-subtle);
+}
+
+/* ============================================================
+   Inspector contextual (estrutura -- dados em WB-02+)
+   ============================================================ */
+
+.app-inspector {
+  width: clamp(var(--inspector-min-width), 24vw, var(--inspector-max-width));
+  background-color: var(--bg-elevated);
+  border-left: var(--border-width-base) solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.app-inspector__empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: var(--space-5);
+  text-align: center;
+}
+
+/* Canvas + inspector lado a lado quando inspector estiver ativo */
+.app-content-area {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-content-area .app-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ============================================================
+   Responsividade basica
+   ============================================================ */
+
+@media (max-width: 1365px) {
+  .app-shell {
+    grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+  }
+  .app-sidebar {
+    width: var(--sidebar-collapsed-width);
+  }
+  .app-sidebar__label,
+  .app-sidebar__brand-text,
+  .app-sidebar__env-text {
+    opacity: 0;
+    width: 0;
+  }
+  .app-sidebar__brand-icon {
+    opacity: 1;
+    width: auto;
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell,
+  .app-sidebar,
+  .app-sidebar__toggle {
+    transition: none;
+  }
 }

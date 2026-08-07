@@ -1,0 +1,99 @@
+﻿{# ============================================================
+   Sidebar global — CIRCE Intel Desk
+   WORKBENCH-01: navegacao principal persistente.
+   active_page: variavel de contexto definida nas views,
+   identica ao uso anterior no _header.html.
+   ============================================================ #}
+<aside class="app-sidebar" id="app-sidebar" role="navigation" aria-label="Navegacao principal">
+
+  <div class="app-sidebar__brand">
+    <span class="app-sidebar__brand-text">CIRCE // INTEL DESK</span>
+    <span class="app-sidebar__brand-icon" aria-hidden="true">CI</span>
+  </div>
+
+  <nav class="app-sidebar__nav">
+    <a class="app-sidebar__item {% if active_page == 'cases' %}app-sidebar__item--active{% endif %}"
+       href="/cases" aria-label="Casos" aria-current="{% if active_page == 'cases' %}page{% endif %}">
+      <svg class="app-sidebar__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <rect x="3" y="4" width="14" height="13" rx="1.5"/>
+        <path d="M7 4V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1"/>
+        <path d="M7 9h6M7 12h4" stroke-linecap="round"/>
+      </svg>
+      <span class="app-sidebar__label">Casos</span>
+    </a>
+
+    <a class="app-sidebar__item {% if active_page == 'persons' %}app-sidebar__item--active{% endif %}"
+       href="/persons" aria-label="Pessoas" aria-current="{% if active_page == 'persons' %}page{% endif %}">
+      <svg class="app-sidebar__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <circle cx="10" cy="7" r="3"/>
+        <path d="M4 17c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke-linecap="round"/>
+      </svg>
+      <span class="app-sidebar__label">Pessoas</span>
+    </a>
+
+    <a class="app-sidebar__item {% if active_page == 'organizations' %}app-sidebar__item--active{% endif %}"
+       href="/organizations" aria-label="Organizacoes" aria-current="{% if active_page == 'organizations' %}page{% endif %}">
+      <svg class="app-sidebar__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <rect x="7" y="2" width="6" height="5" rx="1"/>
+        <rect x="2" y="13" width="5" height="5" rx="1"/>
+        <rect x="13" y="13" width="5" height="5" rx="1"/>
+        <path d="M10 7v3M5 13v-3h10v3" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="app-sidebar__label">Organizacoes</span>
+    </a>
+
+    <a class="app-sidebar__item {% if active_page == 'documents' %}app-sidebar__item--active{% endif %}"
+       href="/documents" aria-label="Documentos" aria-current="{% if active_page == 'documents' %}page{% endif %}">
+      <svg class="app-sidebar__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M5 3h7l4 4v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
+        <path d="M12 3v4h4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M7 10h6M7 13h4" stroke-linecap="round"/>
+      </svg>
+      <span class="app-sidebar__label">Documentos</span>
+    </a>
+
+    <a class="app-sidebar__item {% if active_page == 'reports' %}app-sidebar__item--active{% endif %}"
+       href="/reports" aria-label="Relatorios" aria-current="{% if active_page == 'reports' %}page{% endif %}">
+      <svg class="app-sidebar__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <rect x="3" y="3" width="14" height="14" rx="1.5"/>
+        <path d="M7 7h6M7 10h6M7 13h3" stroke-linecap="round"/>
+      </svg>
+      <span class="app-sidebar__label">Relatorios</span>
+    </a>
+
+    <div class="app-sidebar__separator" role="separator"></div>
+
+    <a class="app-sidebar__item {% if active_page == 'audit' %}app-sidebar__item--active{% endif %}"
+       href="/audit" aria-label="Auditoria" aria-current="{% if active_page == 'audit' %}page{% endif %}">
+      <svg class="app-sidebar__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M10 2l1.5 4.5H16l-3.75 2.75 1.5 4.5L10 11l-3.75 2.75 1.5-4.5L4 6.5h4.5z"/>
+      </svg>
+      <span class="app-sidebar__label">Auditoria</span>
+    </a>
+  </nav>
+
+  <div class="app-sidebar__footer">
+    <a class="app-sidebar__item {% if active_page == 'settings' %}app-sidebar__item--active{% endif %}"
+       href="/settings" aria-label="Configuracoes" aria-current="{% if active_page == 'settings' %}page{% endif %}">
+      <svg class="app-sidebar__icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <circle cx="10" cy="10" r="2.5"/>
+        <path d="M10 2v2M10 16v2M2 10h2M16 10h2M4.22 4.22l1.42 1.42M14.36 14.36l1.42 1.42M4.22 15.78l1.42-1.42M14.36 5.64l1.42-1.42" stroke-linecap="round"/>
+      </svg>
+      <span class="app-sidebar__label">Configuracoes</span>
+    </a>
+
+    <div class="app-sidebar__env">
+      <span class="app-sidebar__env-dot" aria-hidden="true"></span>
+      <span class="app-sidebar__env-text">LOCAL</span>
+    </div>
+  </div>
+
+  <button class="app-sidebar__toggle" id="sidebar-toggle"
+          aria-label="Recolher sidebar" aria-expanded="true"
+          aria-controls="app-sidebar">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+      <path d="M13 5l-5 5 5 5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
+</aside>
