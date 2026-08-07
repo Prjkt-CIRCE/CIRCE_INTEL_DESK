@@ -1,43 +1,51 @@
-{# ============================================================
-   Header partial — CIRCE Intel Desk
-   Bloco 11.1: botão SAIR.
-   Bloco 11.2: item Configurações no nav.
-   Bloco 11.4: item Auditoria no nav.
+﻿{# ============================================================
+   Context header -- CIRCE Intel Desk
+   WORKBENCH-01: substitui o header horizontal anterior.
+   Contem: contexto atual | lançador Ctrl+K | meta (op, crypt, tema, saida)
+   A navegacao principal migrou para _sidebar.html.
    ============================================================ #}
 
 <header class="app-header" role="banner">
 
-  <div class="app-header__brand">CIRCE // INTEL DESK</div>
+  {# Contexto atual (lado esquerdo) #}
+  <div class="app-header__context">
+    <span class="app-header__context-label">
+      {% if active_page == 'cases' %}Casos
+      {% elif active_page == 'persons' %}Pessoas
+      {% elif active_page == 'organizations' %}Organizacoes
+      {% elif active_page == 'documents' %}Documentos
+      {% elif active_page == 'reports' %}Relatorios
+      {% elif active_page == 'audit' %}Auditoria
+      {% elif active_page == 'settings' %}Configuracoes
+      {% else %}Intel Desk
+      {% endif %}
+    </span>
+  </div>
 
-  <nav class="app-header__nav" aria-label="Navegação principal">
-    <a class="app-header__nav-item {% if active_page == 'cases' %}app-header__nav-item--active{% endif %}"
-       href="/cases">Casos</a>
-    <a class="app-header__nav-item {% if active_page == 'persons' %}app-header__nav-item--active{% endif %}"
-       href="/persons">Pessoas</a>
-    <a class="app-header__nav-item {% if active_page == 'organizations' %}app-header__nav-item--active{% endif %}"
-       href="/organizations">Organizações</a>
-    <a class="app-header__nav-item {% if active_page == 'documents' %}app-header__nav-item--active{% endif %}"
-       href="/documents">Documentos</a>
-    <a class="app-header__nav-item {% if active_page == 'reports' %}app-header__nav-item--active{% endif %}"
-       href="/reports">Relatórios</a>
-    <a class="app-header__nav-item {% if active_page == 'audit' %}app-header__nav-item--active{% endif %}"
-       href="/audit">Auditoria</a>
-    <a class="app-header__nav-item {% if active_page == 'settings' %}app-header__nav-item--active{% endif %}"
-       href="/settings">Config</a>
-  </nav>
+  {# Lançador compacto do Ctrl+K (centro) #}
+  <button
+    type="button"
+    class="app-header__palette-trigger"
+    aria-label="Abrir paleta de comandos (Ctrl+K)"
+    onclick="window.CIRCE && window.CIRCE.palette && window.CIRCE.palette.open()"
+  >
+    <span>Pesquisar ou executar comando</span>
+    <span class="app-header__palette-hint">Ctrl+K</span>
+  </button>
 
+  {# Meta: operador, criptografia, tema, saida (lado direito) #}
   <div class="app-header__meta">
-    <span class="app-header__meta-item">OP: —</span>
+    <span class="app-header__meta-item" id="header-operator">OP: &mdash;</span>
     <span class="app-header__meta-item app-header__meta-item--accent">[CRYPT]</span>
     <button type="button" class="btn-toggle" data-toggle-theme aria-label="Alternar tema">☾</button>
-    <button type="button" class="btn--text" id="btn-logout" aria-label="Encerrar sessão">SAIR</button>
+    <button type="button" class="btn--text" id="btn-logout" aria-label="Encerrar sessao">SAIR</button>
   </div>
 
 </header>
 
 <script>
 (function () {
-  const btn = document.getElementById('btn-logout');
+  var btn = document.getElementById('btn-logout');
   if (!btn) return;
   btn.addEventListener('click', function () {
     fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' })

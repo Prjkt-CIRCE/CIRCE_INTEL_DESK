@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    CIRCE Intel Desk — Design Tokens
    Centraliza todas as variáveis visuais do sistema.
    Referência: 09_DESIGN_SYSTEM.md
@@ -200,10 +200,29 @@
 }
 
 /* ============================================================
-   Layout — alturas fixas dos elementos do shell
+   Layout -- shell Workbench
+   Workbench-01: tokens de dimensao do novo shell.
+   --header-height e --command-bar-height mantidos para
+   compatibilidade com scripts existentes durante a migracao.
    ============================================================ */
 :root {
-  --header-height:     48px;
+  /* Legado -- mantidos para compatibilidade durante migracao */
+  --header-height:      48px;
   --command-bar-height: 44px;
-  --status-bar-height: 36px;
+  --status-bar-height:  36px;
+
+  /* Sidebar */
+  --sidebar-width:           232px;
+  --sidebar-collapsed-width: 64px;
+
+  /* Context header */
+  --context-header-height: 60px;
+
+  /* Inspector */
+  --inspector-min-width: 340px;
+  --inspector-max-width: 430px;
+
+  /* Drawer */
+  --drawer-width:      560px;
+  --drawer-wide-width: 640px;
 }
