@@ -1,4 +1,4 @@
-"""
+﻿"""
 CIRCE Intel Desk — Modelo Person (pessoa qualificada).
 
 Referência: 05_MODELO_DE_DADOS.md §3.3.
@@ -11,7 +11,7 @@ Sprint 01 — Bloco 2.
 from typing import Optional
 
 from sqlalchemy import ForeignKey, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
@@ -45,6 +45,8 @@ class Person(Base):
         Integer, ForeignKey("users.id"), nullable=True
     )
 
+
+    incident_reports = relationship("IncidentReport", back_populates="person", lazy="select")
     __table_args__ = (
         Index("idx_persons_full_name", "full_name"),
         Index("idx_persons_cpf", "cpf"),

@@ -1,4 +1,4 @@
-"""
+﻿"""
 CIRCE Intel Desk - Modelo Case (caso/operacao).
 Referencia: 05_MODELO_DE_DADOS.md §3.2.
 Geracao de case_code no padrao {ano}-{sequencial-4d} fica na camada
@@ -48,6 +48,7 @@ class Case(Base):
     )
 
     documents = relationship("Document", back_populates="case", lazy="select")
+    incident_reports = relationship("IncidentReport", back_populates="case", lazy="select")
 
     __table_args__ = (
         Index("idx_cases_case_code", "case_code"),
