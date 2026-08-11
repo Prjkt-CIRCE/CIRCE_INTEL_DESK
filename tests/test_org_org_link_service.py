@@ -1,9 +1,9 @@
-"""
+﻿"""
 Testes do org_org_link_service (RF-006).
 Sprint 01-B — Sub-passo B7.
 """
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timezone
 
@@ -28,6 +28,12 @@ from app.services.audit_service import verify_chain
 def db():
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
+    with engine.connect() as conn:
+        conn.execute(text('CREATE VIRTUAL TABLE IF NOT EXISTS fts_cases USING fts5(case_id UNINDEXED, name, case_code, description, unit, responsible, tokenize="unicode61")'))
+        conn.execute(text('CREATE VIRTUAL TABLE IF NOT EXISTS fts_persons USING fts5(person_id UNINDEXED, full_name, aliases, notes, tokenize="unicode61")'))
+        conn.execute(text('CREATE VIRTUAL TABLE IF NOT EXISTS fts_organizations USING fts5(org_id UNINDEXED, name, aliases, description, tokenize="unicode61")'))
+        conn.execute(text('CREATE VIRTUAL TABLE IF NOT EXISTS fts_documents USING fts5(document_id UNINDEXED, original_filename, title, tokenize="unicode61")'))
+        conn.commit()
     Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     session = Session()
     yield session

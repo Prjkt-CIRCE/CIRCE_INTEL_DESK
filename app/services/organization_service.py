@@ -1,4 +1,4 @@
-"""
+﻿"""
 CIRCE Intel Desk — Serviço de Organizações Criminosas (RF-004).
 
 Operações: create, update, archive, get, list.
@@ -95,6 +95,8 @@ def create_organization(
         description=f"Organização '{org.name}' cadastrada.",
         manage_transaction=False,
     )
+    from app.services.search_service import index_organization
+    index_organization(db, org)  # FTS5 -- sub-passo 03-0
     db.commit()
     return org
 
@@ -143,6 +145,8 @@ def update_organization(
         metadata={"changed_fields": list(changed.keys())},
         manage_transaction=False,
     )
+    from app.services.search_service import index_organization
+    index_organization(db, org)  # FTS5 -- sub-passo 03-0
     db.commit()
     return org
 
@@ -177,6 +181,8 @@ def archive_organization(
         description=f"Organização '{org.name}' arquivada.",
         manage_transaction=False,
     )
+    from app.services.search_service import index_organization
+    index_organization(db, org)  # FTS5 -- sub-passo 03-0
     db.commit()
     return org
 

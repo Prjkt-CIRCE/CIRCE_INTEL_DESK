@@ -1,4 +1,4 @@
-"""
+﻿"""
 CIRCE Intel Desk — Testes da cadeia de auditoria imutável.
 
 Cobre os 5 cenários previstos em ADR-003 §5:
@@ -39,6 +39,12 @@ def db():
         connect_args={"check_same_thread": False},
     )
     Base.metadata.create_all(engine)
+    with engine.connect() as conn:
+        conn.execute(text('CREATE VIRTUAL TABLE IF NOT EXISTS fts_cases USING fts5(case_id UNINDEXED, name, case_code, description, unit, responsible, tokenize="unicode61")'))
+        conn.execute(text('CREATE VIRTUAL TABLE IF NOT EXISTS fts_persons USING fts5(person_id UNINDEXED, full_name, aliases, notes, tokenize="unicode61")'))
+        conn.execute(text('CREATE VIRTUAL TABLE IF NOT EXISTS fts_organizations USING fts5(org_id UNINDEXED, name, aliases, description, tokenize="unicode61")'))
+        conn.execute(text('CREATE VIRTUAL TABLE IF NOT EXISTS fts_documents USING fts5(document_id UNINDEXED, original_filename, title, tokenize="unicode61")'))
+        conn.commit()
 
     with Session(engine) as session:
         yield session

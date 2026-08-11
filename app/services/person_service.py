@@ -1,4 +1,4 @@
-"""
+﻿"""
 CIRCE Intel Desk — Serviço de Pessoas (RF-002).
 
 Regras de domínio do cadastro de pessoas:
@@ -143,6 +143,8 @@ def create_person(db: Session, data: PersonCreate, user_id: int) -> Person:
             description=f"Criação da pessoa {person.full_name!r}",
             manage_transaction=False,
         )
+        from app.services.search_service import index_person
+        index_person(db, person)  # FTS5 -- sub-passo 03-0
         db.commit()
         db.refresh(person)
         return person
@@ -206,6 +208,8 @@ def update_person(
             description=f"Edição da pessoa {person.full_name!r} — campos: {', '.join(changed_fields)}",
             manage_transaction=False,
         )
+        from app.services.search_service import index_person
+        index_person(db, person)  # FTS5 -- sub-passo 03-0
         db.commit()
         db.refresh(person)
         return person
@@ -247,6 +251,8 @@ def archive_person(db: Session, person_id: int, user_id: int) -> Optional[Person
             description=f"Arquivamento da pessoa {person.full_name!r}",
             manage_transaction=False,
         )
+        from app.services.search_service import index_person
+        index_person(db, person)  # FTS5 -- sub-passo 03-0
         db.commit()
         db.refresh(person)
         return person

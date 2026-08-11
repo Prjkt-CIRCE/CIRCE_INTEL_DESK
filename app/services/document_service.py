@@ -1,4 +1,4 @@
-"""
+﻿"""
 CIRCE Intel Desk — Serviço de Documentos (RF-007).
 
 Importa arquivos para um caso, verifica integridade e gerencia metadados.
@@ -167,6 +167,8 @@ def import_document(
         description=description,
         manage_transaction=False,
     )
+    from app.services.search_service import index_document
+    index_document(db, doc)  # FTS5 -- sub-passo 03-0
     db.commit()
 
     return {"document": doc, "duplicate": False, "created": True}
@@ -224,6 +226,8 @@ def update_document(
         metadata={"changed_fields": list(changed.keys())},
         manage_transaction=False,
     )
+    from app.services.search_service import index_document
+    index_document(db, doc)  # FTS5 -- sub-passo 03-0
     db.commit()
     return doc
 
