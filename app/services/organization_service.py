@@ -4,9 +4,16 @@ CIRCE Intel Desk — Serviço de Organizações Criminosas (RF-004).
 Operações: create, update, archive, get, list.
 Auditoria atômica conforme ADR-003a e D47:
   BEGIN IMMEDIATE (implícito pelo SQLAlchemy) → add/flush →
+  search_service.index_organization (FTS5, Sprint 03-0) →
   log_action(manage_transaction=False) → commit().
 
+NOTA (D-03-0-01): este serviço não implementa BEGIN IMMEDIATE explícito
+nem try/except/rollback — dívida técnica pré-existente ao Sprint 03-0.
+Registrado para sprint de hardening futura. Não corrigido aqui para
+manter escopo cirúrgico do 03-0.
+
 Sprint 01-B — Sub-passo B2.
+Sprint 03 — Sub-passo 03-0: integração FTS5 (index_organization).
 """
 from __future__ import annotations
 
@@ -18,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from app.models.organization import Organization
 from app.services.audit_service import log_action
+from app.services import search_service
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +84,8 @@ def create_organization(
     db.add(org)
     db.flush()
 
+    search_service.index_organization(db, org)  # Sprint 03-0: mantém FTS5 sincronizado
+
     log_action(
         db,
         action="org_create",
@@ -121,6 +131,8 @@ def update_organization(
     org.updated_by = updated_by
     db.flush()
 
+    search_service.index_organization(db, org)  # Sprint 03-0: mantém FTS5 sincronizado
+
     log_action(
         db,
         action="org_update",
@@ -153,6 +165,8 @@ def archive_organization(
     org.updated_at = _now()
     org.updated_by = updated_by
     db.flush()
+
+    search_service.index_organization(db, org)  # Sprint 03-0: remove do FTS5 (status=archived)
 
     log_action(
         db,

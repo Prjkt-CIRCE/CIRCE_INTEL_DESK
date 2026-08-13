@@ -1,5 +1,5 @@
 """
-CIRCE Intel Desk – Serviço de Casos (RF-001).
+CIRCE Intel Desk — Serviço de Casos (RF-001).
 
 Regras de domínio do cadastro de casos:
   - Geração de case_code no padrão {ano}-{sequencial-4d} (CA-001.1).
@@ -10,18 +10,20 @@ Transação e auditoria (ADR-003 §2.4 + ADR-003a):
   Operações que escrevem estado seguem o contrato do ADR-003a:
     1. db.execute(text("BEGIN IMMEDIATE"))     -> lock de escrita (ADR-003 §2.3)
     2. db.add(entidade); db.flush()            -> materializa entity_id
-    3. audit_service.log_action(..., manage_transaction=False)
-    4. db.commit()                             -> commit único; falha -> rollback
-  Assim, entidade e log vivem na MESMA transação: não há ação não-logada.
+    3. search_service.index_case(db, case)     -> atualiza FTS5 (Sprint 03-0)
+    4. audit_service.log_action(..., manage_transaction=False)
+    5. db.commit()                             -> commit único; falha -> rollback
+  Assim, entidade, índice FTS5 e log vivem na MESMA transação.
 
   Funções de leitura (get/list) NÃO abrem transação imediata e NÃO auditam
   (visualização de caso não é evento auditável no RF-001; auditoria de
   visualização é escopo de RF-020, tratado à parte).
 
-Strings de action (enum 05_MODELO_DE_DADOS.md §6.4 – contrato do hash,
+Strings de action (enum 05_MODELO_DE_DADOS.md §6.4 — contrato do hash,
 ADR-003 §3.2): "case_create", "case_update", "case_archive".
 
-Sprint 01 – Bloco 8, Sub-passo 8.2.
+Sprint 01 — Bloco 8, Sub-passo 8.2.
+Sprint 03 — Sub-passo 03-0: integração FTS5 (index_case).
 AT-03.8: update_case dispara push_to_athena quando platea_status muda para "shared".
 """
 
@@ -37,6 +39,7 @@ from sqlalchemy.orm import Session
 from app.models.case import Case
 from app.schemas.cases import CaseCreate, CaseUpdate
 from app.services import audit_service
+from app.services import search_service
 
 logger = logging.getLogger(__name__)
 
@@ -95,8 +98,8 @@ def create_case(db: Session, data: CaseCreate, user_id: int) -> Case:
     """Cria um caso e registra a auditoria na mesma transação (CA-001.1, CA-001.6).
 
     Sequência conforme ADR-003a: BEGIN IMMEDIATE -> insere caso -> flush
-    (materializa id) -> log_action(manage_transaction=False) -> commit.
-    Qualquer falha faz rollback de caso e log juntos.
+    (materializa id) -> index_case (FTS5) -> log_action(manage_transaction=False)
+    -> commit. Qualquer falha faz rollback de caso, índice e log juntos.
     """
     db.execute(text("BEGIN IMMEDIATE"))  # ADR-003 §2.3 / ADR-003a passo 1
     try:
@@ -118,13 +121,15 @@ def create_case(db: Session, data: CaseCreate, user_id: int) -> Case:
         db.add(case)
         db.flush()  # materializa case.id para usar como entity_id
 
+        search_service.index_case(db, case)  # Sprint 03-0: mantém FTS5 sincronizado
+
         audit_service.log_action(
             db,
             action="case_create",
             user_id=user_id,
             entity_type=_ENTITY_TYPE,
             entity_id=case.id,
-            description=f"Criação do caso {case.case_code} – {case.name}",
+            description=f"Criação do caso {case.case_code} — {case.name}",
             manage_transaction=False,  # ADR-003a: a transação é deste serviço
         )
 
@@ -182,6 +187,8 @@ def update_case(
         case.updated_at = _now_iso()
         case.updated_by = user_id
         db.flush()
+
+        search_service.index_case(db, case)  # Sprint 03-0: mantém FTS5 sincronizado
 
         audit_service.log_action(
             db,
@@ -254,6 +261,8 @@ def archive_case(db: Session, case_id: int, user_id: int) -> Optional[Case]:
         case.updated_by = user_id
         db.flush()
 
+        search_service.index_case(db, case)  # Sprint 03-0: remove do FTS5 (status=archived)
+
         audit_service.log_action(
             db,
             action="case_archive",
@@ -273,7 +282,7 @@ def archive_case(db: Session, case_id: int, user_id: int) -> Optional[Case]:
 
 
 def get_case(db: Session, case_id: int) -> Optional[Case]:
-    """Retorna um caso por id, ou None. Leitura pura – não audita."""
+    """Retorna um caso por id, ou None. Leitura pura — não audita."""
     return db.get(Case, case_id)
 
 
@@ -288,7 +297,7 @@ def list_cases(
 
     Por padrão, oculta arquivados (lista padrão) e ordena por data de criação
     decrescente. sort_by aceita: case_code, name, created_at, status.
-    Leitura pura – não audita.
+    Leitura pura — não audita.
     """
     column = _SORTABLE.get(sort_by, Case.created_at)
     order = column.desc() if descending else column.asc()

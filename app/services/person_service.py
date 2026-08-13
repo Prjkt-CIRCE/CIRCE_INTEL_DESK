@@ -17,27 +17,17 @@ Transação e auditoria (ADR-003 §2.4 + ADR-003a) — MESMO contrato do
 case_service.py:
   Operações que escrevem estado seguem:
     1. db.execute(text("BEGIN IMMEDIATE"))     -> lock de escrita (ADR-003 §2.3)
-    2. (checagem de CPF duplicado acontece AQUI DENTRO, sob o mesmo lock —
-       mesmo motivo documentado em case_service.generate_case_code: duas
-       criações simultâneas com o mesmo CPF não podem passar)
+    2. (checagem de CPF duplicado acontece AQUI DENTRO, sob o mesmo lock)
     3. db.add(entidade); db.flush()            -> materializa entity_id
-    4. audit_service.log_action(..., manage_transaction=False)
-    5. db.commit()                             -> commit único; falha -> rollback
-  Assim, entidade e log vivem na MESMA transação: não há ação não-logada.
-  Funções de leitura (get/list) NÃO abrem transação imediata e NÃO auditam.
+    4. search_service.index_person(db, person) -> atualiza FTS5 (Sprint 03-0)
+    5. audit_service.log_action(..., manage_transaction=False)
+    6. db.commit()                             -> commit único; falha -> rollback
+  Assim, entidade, índice FTS5 e log vivem na MESMA transação.
 
-Strings de action (mesmo contrato de hash do ADR-003 §3.2, por analogia às
-strings já em uso para "case_*"): "person_create", "person_update",
-"person_archive".
-
-NOTA (D57): a checagem de duplicidade roda tanto em create_person quanto
-em update_person (quando cpf é enviado e muda), porque CA-002.5 fala em
-"quando o operador informa CPF que já existe" sem restringir a criação —
-editar uma pessoa para um CPF que já pertence a outra é o mesmo risco.
-Se esta leitura do CA estiver errada, é fácil restringir a checagem só à
-criação — sinalizado para revisão do operador.
+Strings de action: "person_create", "person_update", "person_archive".
 
 Sprint 01 — Bloco 9, Sub-passo 9.2.
+Sprint 03 — Sub-passo 03-0: integração FTS5 (index_person).
 """
 from __future__ import annotations
 
@@ -51,12 +41,12 @@ from sqlalchemy.orm import Session
 from app.models.person import Person
 from app.schemas.persons import PersonCreate, PersonUpdate
 from app.services import audit_service
+from app.services import search_service
 
 # Tipo de entidade usado nos logs de auditoria (05_MODELO_DE_DADOS.md §3.8)
 _ENTITY_TYPE = "person"
 
-# Colunas permitidas para ordenação na listagem — mesmo espírito de
-# case_service._SORTABLE (evita nome de coluna arbitrário vindo do cliente).
+# Colunas permitidas para ordenação na listagem.
 _SORTABLE = {
     "full_name": Person.full_name,
     "created_at": Person.created_at,
@@ -85,21 +75,12 @@ class DuplicateCPFError(Exception):
 
 
 def _now_iso() -> str:
-    """Timestamp ISO 8601 UTC com microsegundos e sufixo Z.
-
-    Mesmo formato usado pelo audit_service (ADR-003 §2.1) e por
-    case_service._now_iso, por consistência.
-    """
+    """Timestamp ISO 8601 UTC com microsegundos e sufixo Z."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
 
 
 def normalize_cpf(cpf: Optional[str]) -> Optional[str]:
-    """Reduz o CPF a apenas dígitos (CA-002.2). None/vazio permanece None.
-
-    Não valida quantidade de dígitos nem dígito verificador — o CA-002.2
-    pede apenas normalização para exibição/busca consistente, não
-    validação de CPF real (fora de escopo do Bloco 9).
-    """
+    """Reduz o CPF a apenas dígitos (CA-002.2). None/vazio permanece None."""
     if cpf is None:
         return None
     digits = _CPF_NAO_DIGITO.sub("", cpf)
@@ -107,11 +88,7 @@ def normalize_cpf(cpf: Optional[str]) -> Optional[str]:
 
 
 def _find_person_by_cpf(db: Session, cpf_normalizado: str, exclude_id: Optional[int] = None) -> Optional[Person]:
-    """Busca uma pessoa existente com o mesmo CPF normalizado.
-
-    exclude_id existe para update_person: ao editar a própria pessoa sem
-    mudar o CPF, ela não deve "colidir consigo mesma".
-    """
+    """Busca uma pessoa existente com o mesmo CPF normalizado."""
     stmt = select(Person).where(Person.cpf == cpf_normalizado)
     if exclude_id is not None:
         stmt = stmt.where(Person.id != exclude_id)
@@ -122,14 +99,9 @@ def create_person(db: Session, data: PersonCreate, user_id: int) -> Person:
     """Cria uma pessoa e registra a auditoria na mesma transação (CA-002.1, CA-002.7).
 
     Sequência conforme ADR-003a: BEGIN IMMEDIATE -> checa CPF duplicado
-    (D57) -> insere pessoa -> flush (materializa id) ->
-    log_action(manage_transaction=False) -> commit. Qualquer falha faz
-    rollback de pessoa e log juntos.
-
-    Levanta DuplicateCPFError se o cpf normalizado já pertencer a outra
-    pessoa (CA-002.5) — a checagem acontece DENTRO da transação imediata,
-    sob o mesmo lock de escrita, para evitar duas criações simultâneas
-    com o mesmo CPF (mesmo raciocínio de case_service.generate_case_code).
+    (D57) -> insere pessoa -> flush (materializa id) -> index_person (FTS5)
+    -> log_action(manage_transaction=False) -> commit.
+    Qualquer falha faz rollback de pessoa, índice e log juntos.
     """
     cpf_normalizado = normalize_cpf(data.cpf)
 
@@ -152,13 +124,16 @@ def create_person(db: Session, data: PersonCreate, user_id: int) -> Person:
             father_name=data.father_name,
             notes=data.notes,
             source=data.source,
-            reliability_level=data.reliability_level or "pending",  # default explícito
-            status="active",  # default aplicado explicitamente (mesmo espírito de D45)
+            reliability_level=data.reliability_level or "pending",
+            status="active",
             created_at=now,
             created_by=user_id,
         )
         db.add(person)
-        db.flush()  # materializa person.id para usar como entity_id
+        db.flush()  # materializa person.id
+
+        search_service.index_person(db, person)  # Sprint 03-0: mantém FTS5 sincronizado
+
         audit_service.log_action(
             db,
             action="person_create",
@@ -166,13 +141,12 @@ def create_person(db: Session, data: PersonCreate, user_id: int) -> Person:
             entity_type=_ENTITY_TYPE,
             entity_id=person.id,
             description=f"Criação da pessoa {person.full_name!r}",
-            manage_transaction=False,  # ADR-003a: a transação é deste serviço
+            manage_transaction=False,
         )
         db.commit()
         db.refresh(person)
         return person
     except DuplicateCPFError:
-        # rollback já foi feito acima, antes de levantar; apenas repropaga.
         raise
     except Exception:
         db.rollback()
@@ -186,20 +160,15 @@ def update_person(
 
     Aplica apenas os campos enviados (edição parcial). status NÃO é
     alterado por aqui (arquivar é archive_person, dedicado).
-
-    Levanta DuplicateCPFError se o cpf enviado (normalizado) já pertencer
-    a OUTRA pessoa (D57 — ver nota no cabeçalho do módulo).
-
     Retorna None se a pessoa não existir.
     """
     person = db.get(Person, person_id)
     if person is None:
         return None
 
-    # Só os campos efetivamente enviados (exclude_unset) entram na edição.
     changes = data.model_dump(exclude_unset=True)
     if not changes:
-        return person  # nada a alterar; não gera log de edição vazia
+        return person
 
     if "cpf" in changes:
         changes["cpf"] = normalize_cpf(changes["cpf"])
@@ -219,13 +188,15 @@ def update_person(
                 changed_fields.append(field)
 
         if not changed_fields:
-            # Valores idênticos aos atuais: nada mudou de fato.
             db.rollback()
             return person
 
         person.updated_at = _now_iso()
         person.updated_by = user_id
         db.flush()
+
+        search_service.index_person(db, person)  # Sprint 03-0: mantém FTS5 sincronizado
+
         audit_service.log_action(
             db,
             action="person_update",
@@ -248,8 +219,7 @@ def update_person(
 def archive_person(db: Session, person_id: int, user_id: int) -> Optional[Person]:
     """Arquiva uma pessoa (exclusão lógica) e audita (CA-002.7).
 
-    Idempotente: arquivar uma pessoa já arquivada não gera novo log
-    (mesmo espírito de D-idempotência do archive_case, Bloco 8.5).
+    Idempotente: arquivar uma pessoa já arquivada não gera novo log.
     Retorna None se a pessoa não existir.
     """
     person = db.get(Person, person_id)
@@ -257,7 +227,7 @@ def archive_person(db: Session, person_id: int, user_id: int) -> Optional[Person
         return None
 
     if person.status == "archived":
-        return person  # idempotente — sem log de arquivamento repetido
+        return person
 
     db.execute(text("BEGIN IMMEDIATE"))
     try:
@@ -265,6 +235,9 @@ def archive_person(db: Session, person_id: int, user_id: int) -> Optional[Person
         person.updated_at = _now_iso()
         person.updated_by = user_id
         db.flush()
+
+        search_service.index_person(db, person)  # Sprint 03-0: remove do FTS5 (status=archived)
+
         audit_service.log_action(
             db,
             action="person_archive",
@@ -296,8 +269,7 @@ def list_persons(
 ) -> list[Person]:
     """Lista pessoas com ordenação e filtro de arquivadas (CA-002.4).
 
-    Por padrão, oculta arquivadas (lista padrão) e ordena por data de
-    criação decrescente. sort_by aceita: full_name, created_at, status.
+    sort_by aceita: full_name, created_at, status.
     Leitura pura — não audita.
     """
     column = _SORTABLE.get(sort_by, Person.created_at)

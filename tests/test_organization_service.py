@@ -1,17 +1,15 @@
 """
 Testes do organization_service (RF-004).
 
-Sprint 01-B — Sub-passo B2.
+Sprint 01-B - Sub-passo B2.
+
+Fixture 'db' definida em conftest.py (Sprint 03-0: inclui tabelas FTS5).
 """
 import pytest
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import text
 
-from app.models.base import Base
-from app.models.organization import Organization
 from app.models.audit_log import AuditLog
-from app.models.user import User
-from app.models.setting import Setting
+from app.models.organization import Organization
 from app.services.organization_service import (
     create_organization,
     update_organization,
@@ -21,20 +19,6 @@ from app.services.organization_service import (
     OrganizationNotFoundError,
 )
 from app.services.audit_service import verify_chain
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def db():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
-    session = Session()
-    yield session
-    session.close()
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +34,7 @@ def test_create_organization_basico(db):
 
 
 def test_create_organization_gera_audit(db):
-    org = create_organization(db, name="Família do Norte", created_by=1)
+    org = create_organization(db, name="Familia do Norte", created_by=1)
     log = db.query(AuditLog).filter_by(action="org_create").first()
     assert log is not None
     assert log.entity_id == org.id
@@ -75,9 +59,9 @@ def test_create_com_campos_opcionais(db):
         alcunhas="Comando Vermelho",
         org_type="faccao_prisional",
         area_atuacao="Rio de Janeiro",
-        source="Inteligência",
+        source="Inteligencia",
         reliability_level="alto",
-        notes="Facção com atuação nacional.",
+        notes="Faccao com atuacao nacional.",
         created_by=1,
     )
     assert org.siglas == "CV"
@@ -87,17 +71,17 @@ def test_create_com_campos_opcionais(db):
 
 def test_update_persiste_e_audita(db):
     org = create_organization(db, name="GDE", created_by=1)
-    updated = update_organization(db, org.id, name="Guardiões do Estado", updated_by=1)
-    assert updated.name == "Guardiões do Estado"
+    updated = update_organization(db, org.id, name="Guardioes do Estado", updated_by=1)
+    assert updated.name == "Guardioes do Estado"
     log = db.query(AuditLog).filter_by(action="org_update").first()
     assert log is not None
     assert "name" in log.metadata_json
 
 
 def test_update_sem_mudanca_nao_loga(db):
-    org = create_organization(db, name="Milícia Sul", created_by=1)
+    org = create_organization(db, name="Milicia Sul", created_by=1)
     count_before = db.query(AuditLog).count()
-    update_organization(db, org.id, name="Milícia Sul", updated_by=1)
+    update_organization(db, org.id, name="Milicia Sul", updated_by=1)
     assert db.query(AuditLog).count() == count_before
 
 
@@ -154,7 +138,7 @@ def test_atomicidade_rollback_em_falha(db):
 
 def test_cadeia_integra_apos_operacoes(db):
     org = create_organization(db, name="PCC", org_type="faccao_prisional", created_by=1)
-    update_organization(db, org.id, area_atuacao="São Paulo", updated_by=1)
+    update_organization(db, org.id, area_atuacao="Sao Paulo", updated_by=1)
     archive_organization(db, org.id, updated_by=1)
     result = verify_chain(db)
     assert result["ok"] is True

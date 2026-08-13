@@ -1,53 +1,20 @@
 """Teste integrado do case_service contra o audit_service real (ADR-003a).
 Reproduz fielmente o session.py do projeto: engine SQLite, check_same_thread=False,
-FK on, SEM isolation_level customizado, SessionLocal com expire_on_commit=False."""
-import pytest
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.orm import sessionmaker
+FK on, SEM isolation_level customizado, SessionLocal com expire_on_commit=False.
 
-from app.models.base import Base
-from app.models.user import User
-import app.models.case      # noqa: F401  (registra tabela cases)
-import app.models.audit_log # noqa: F401  (registra tabela audit_logs)
+Fixture 'db' definida em conftest.py (Sprint 03-0: inclui tabelas FTS5)."""
+import pytest
+from sqlalchemy import text
+
 from app.schemas.cases import CaseCreate, CaseUpdate
 from app.services import case_service, audit_service
 
 
-@pytest.fixture()
-def db():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-
-    @event.listens_for(engine, "connect")
-    def _fk(c, r):
-        cur = c.cursor(); cur.execute("PRAGMA foreign_keys=ON"); cur.close()
-
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
-    s = SessionLocal()
-
-    # Cria o operador (id=1) usado como created_by/updated_by nos casos.
-    # Usa o modelo User real (não SQL bruto), para que os defaults definidos
-    # na camada Python (ex.: role='operator') sejam aplicados — evita
-    # IntegrityError em colunas NOT NULL com default só no modelo.
-    operador = User(
-        id=1,
-        username="op",
-        display_name="Operador",
-        password_hash="x",
-        created_at="2026-05-30T00:00:00.000000Z",
-    )
-    s.add(operador)
-    s.commit()
-
-    yield s
-    s.close()
-
-
 def test_create_gera_codigo_sequencial(db):
-    c1 = case_service.create_case(db, CaseCreate(name="Operação Alpha"), user_id=1)
+    c1 = case_service.create_case(db, CaseCreate(name="Operacao Alpha"), user_id=1)
     assert c1.case_code.endswith("-0001")
     assert c1.status == "active"
-    c2 = case_service.create_case(db, CaseCreate(name="Operação Beta"), user_id=1)
+    c2 = case_service.create_case(db, CaseCreate(name="Operacao Beta"), user_id=1)
     assert c2.case_code.endswith("-0002")
     # mesmo ano nos dois
     assert c1.case_code[:4] == c2.case_code[:4]
@@ -96,7 +63,7 @@ def test_archive_remove_da_lista_padrao(db):
 
 
 def test_atomicidade_rollback_em_falha(db, monkeypatch):
-    # força falha dentro do log_action -> caso NÃO deve persistir
+    # forca falha dentro do log_action -> caso NAO deve persistir
     def boom(*a, **k):
         raise RuntimeError("falha simulada no log")
     monkeypatch.setattr(case_service.audit_service, "log_action", boom)

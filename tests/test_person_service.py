@@ -2,52 +2,21 @@
 Reproduz fielmente o session.py do projeto: engine SQLite, check_same_thread=False,
 FK on, SEM isolation_level customizado, SessionLocal com expire_on_commit=False.
 Espelha tests/test_case_service.py; testes extras cobrem a checagem de CPF
-duplicado (CA-002.5, decisão D57) que o case_service não tem equivalente."""
-import pytest
-from sqlalchemy import create_engine, event, text
-from sqlalchemy.orm import sessionmaker
+duplicado (CA-002.5, decisao D57) que o case_service nao tem equivalente.
 
-from app.models.base import Base
-from app.models.user import User
-import app.models.person    # noqa: F401  (registra tabela persons)
-import app.models.audit_log # noqa: F401  (registra tabela audit_logs)
+Fixture 'db' definida em conftest.py (Sprint 03-0: inclui tabelas FTS5)."""
+import pytest
+from sqlalchemy import text
+
 from app.schemas.persons import PersonCreate, PersonUpdate
 from app.services import person_service, audit_service
-
-
-@pytest.fixture()
-def db():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-
-    @event.listens_for(engine, "connect")
-    def _fk(c, r):
-        cur = c.cursor(); cur.execute("PRAGMA foreign_keys=ON"); cur.close()
-
-    Base.metadata.create_all(engine)
-    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
-    s = SessionLocal()
-
-    # Cria o operador (id=1) usado como created_by/updated_by nas pessoas.
-    # Usa o modelo User real (não SQL bruto), mesmo motivo do test_case_service.
-    operador = User(
-        id=1,
-        username="op",
-        display_name="Operador",
-        password_hash="x",
-        created_at="2026-05-30T00:00:00.000000Z",
-    )
-    s.add(operador)
-    s.commit()
-
-    yield s
-    s.close()
 
 
 def test_create_normaliza_cpf_e_audita(db):
     p = person_service.create_person(
         db, PersonCreate(full_name="Fulano de Tal", cpf="123.456.789-00"), user_id=1
     )
-    assert p.cpf == "12345678900"  # normalizado para apenas dígitos (CA-002.2)
+    assert p.cpf == "12345678900"  # normalizado para apenas digitos (CA-002.2)
     assert p.status == "active"
     assert p.reliability_level == "pending"  # default aplicado
     logs = db.execute(text("SELECT action, entity_type, entity_id FROM audit_logs")).fetchall()
@@ -59,7 +28,7 @@ def test_create_normaliza_cpf_e_audita(db):
 def test_create_sem_cpf_nao_verifica_duplicidade(db):
     p1 = person_service.create_person(db, PersonCreate(full_name="Sem CPF Um"), user_id=1)
     p2 = person_service.create_person(db, PersonCreate(full_name="Sem CPF Dois"), user_id=1)
-    assert p1.cpf is None and p2.cpf is None  # dois CPFs nulos não colidem
+    assert p1.cpf is None and p2.cpf is None  # dois CPFs nulos nao colidem
 
 
 def test_create_cpf_duplicado_rejeitado(db):
@@ -67,14 +36,14 @@ def test_create_cpf_duplicado_rejeitado(db):
         db, PersonCreate(full_name="Pessoa Original", cpf="111.222.333-44"), user_id=1
     )
     with pytest.raises(person_service.DuplicateCPFError) as exc_info:
-        # mesmo CPF, máscara diferente — deve colidir após normalização (CA-002.5)
+        # mesmo CPF, mascara diferente - deve colidir apos normalizacao (CA-002.5)
         person_service.create_person(
             db, PersonCreate(full_name="Pessoa Duplicada", cpf="11122233344"), user_id=1
         )
     err = exc_info.value
     assert err.existing_person_id == original.id
     assert err.existing_person_name == "Pessoa Original"
-    # a pessoa duplicada NÃO deve ter sido persistida (rollback)
+    # a pessoa duplicada NAO deve ter sido persistida (rollback)
     n_pessoas = db.execute(text("SELECT COUNT(*) FROM persons")).scalar()
     assert n_pessoas == 1
 
@@ -86,7 +55,7 @@ def test_nome_vazio_rejeitado(db):
 
 def test_reliability_invalido_rejeitado(db):
     with pytest.raises(Exception):
-        PersonCreate(full_name="Alguém", reliability_level="chutômetro")
+        PersonCreate(full_name="Alguem", reliability_level="chutometro")
 
 
 def test_update_persiste_e_audita(db):
@@ -119,16 +88,16 @@ def test_update_cpf_duplicado_rejeitado(db):
         person_service.update_person(db, p2.id, PersonUpdate(cpf="99988877766"), user_id=1)
     assert exc_info.value.existing_person_id == p1.id
 
-    # p2 não deve ter ficado com o CPF (rollback da tentativa de update)
+    # p2 nao deve ter ficado com o CPF (rollback da tentativa de update)
     db.refresh(p2)
     assert p2.cpf is None
 
 
 def test_update_cpf_para_si_mesma_nao_colide(db):
-    # editar OUTROS campos sem tocar no cpf já existente não deve disparar
-    # DuplicateCPFError (a pessoa não colide "consigo mesma").
+    # editar OUTROS campos sem tocar no cpf ja existente nao deve disparar
+    # DuplicateCPFError (a pessoa nao colide "consigo mesma").
     p = person_service.create_person(
-        db, PersonCreate(full_name="Estável", cpf="555.444.333-22"), user_id=1
+        db, PersonCreate(full_name="Estavel", cpf="555.444.333-22"), user_id=1
     )
     upd = person_service.update_person(
         db, p.id, PersonUpdate(cpf="555.444.333-22", notes="reenvio do mesmo cpf"), user_id=1
@@ -147,15 +116,14 @@ def test_archive_idempotente_remove_da_lista_padrao(db):
     actions = [r[0] for r in db.execute(text("SELECT action FROM audit_logs")).fetchall()]
     assert actions.count("person_archive") == 1
 
-    # arquivar de novo é idempotente: não gera segundo log (mesmo espírito
-    # de archive_case, Bloco 8.5)
+    # arquivar de novo e idempotente: nao gera segundo log
     person_service.archive_person(db, p.id, user_id=1)
     actions_depois = [r[0] for r in db.execute(text("SELECT action FROM audit_logs")).fetchall()]
     assert actions_depois.count("person_archive") == 1
 
 
 def test_atomicidade_rollback_em_falha(db, monkeypatch):
-    # força falha dentro do log_action -> pessoa NÃO deve persistir
+    # forca falha dentro do log_action -> pessoa NAO deve persistir
     def boom(*a, **k):
         raise RuntimeError("falha simulada no log")
     monkeypatch.setattr(person_service.audit_service, "log_action", boom)

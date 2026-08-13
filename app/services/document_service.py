@@ -6,7 +6,13 @@ Estrutura de armazenamento: data/cases/{case_id}/original/ (ADR-004 §3.1).
 Comportamento em duplicata de hash: retorna documento existente + flag
 duplicate=True para que a camada HTTP decida como reagir (ADR-004 §3.3).
 
+NOTA (D-03-0-01): este serviço não implementa BEGIN IMMEDIATE explícito
+nem try/except/rollback — dívida técnica pré-existente ao Sprint 03-0.
+Registrado para sprint de hardening futura. Não corrigido aqui para
+manter escopo cirúrgico do 03-0.
+
 Sprint 01-B — Sub-passo B8.
+Sprint 03 — Sub-passo 03-0: integração FTS5 (index_document).
 """
 from __future__ import annotations
 
@@ -22,6 +28,7 @@ from sqlalchemy.orm import Session
 from app.models.case import Case
 from app.models.document import Document
 from app.services.audit_service import log_action
+from app.services import search_service
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
@@ -117,7 +124,7 @@ def import_document(
     # stored_path relativo à raiz do projeto
     stored_path = candidate.relative_to(_PROJECT_ROOT).as_posix()
 
-    # 8. Criar registro no banco (D47)
+    # 8. Criar registro no banco
     now = datetime.now(timezone.utc)
 
     if existing is not None:
@@ -149,6 +156,8 @@ def import_document(
     )
     db.add(doc)
     db.flush()
+
+    search_service.index_document(db, doc)  # Sprint 03-0: mantém FTS5 sincronizado
 
     log_action(
         db,
@@ -203,6 +212,8 @@ def update_document(
         setattr(doc, key, value)
     doc.updated_at = datetime.now(timezone.utc)
     db.flush()
+
+    search_service.index_document(db, doc)  # Sprint 03-0: mantém FTS5 sincronizado
 
     log_action(
         db,
