@@ -1,16 +1,17 @@
 """
-CIRCE Intel Desk â€” aplicaÃ§Ã£o FastAPI.
+CIRCE Intel Desk — aplicação FastAPI.
 
-Sprint 0: fundaÃ§Ã£o tÃ©cnica (endpoint /health validando o stack).
+Sprint 0: fundação técnica (endpoint /health validando o stack).
 Sprint 0.5: shell visual (rota raiz / passa a renderizar o shell HTML;
-            JSON de informaÃ§Ã£o do sistema migra para /api/info).
-Sprint 01 â€” Bloco 4: lifespan que executa seed dos parÃ¢metros operacionais
+            JSON de informação do sistema migra para /api/info).
+Sprint 01 — Bloco 4: lifespan que executa seed dos parâmetros operacionais
             (D11) no startup, idempotente.
-Sprint 01 â€” Bloco 5 (5.8): middleware auth_guard protege todas as rotas
-            exceto as exceÃ§Ãµes pÃºblicas (ver app/web/middleware.py).
-Sprint 01 â€” Bloco 9 (9.4): registrado o router de Pessoas (RF-002).
-Sprint 01 â€” Bloco 10 (10.4): registrado o router de VÃ­nculos (RF-003).
-Sprint 01 â€” Bloco 11.4: registrado o router de Auditoria (RF-020).
+Sprint 01 — Bloco 5 (5.8): middleware auth_guard protege todas as rotas
+            exceto as exceções públicas (ver app/web/middleware.py).
+Sprint 01 — Bloco 9 (9.4): registrado o router de Pessoas (RF-002).
+Sprint 01 — Bloco 10 (10.4): registrado o router de Vínculos (RF-003).
+Sprint 01 — Bloco 11.4: registrado o router de Auditoria (RF-020).
+Sprint 03 — Sub-passo 03-3: registrado o router de BOs (RF-009).
 """
 import logging
 from contextlib import asynccontextmanager
@@ -31,6 +32,8 @@ from app.api.audit import router as audit_router
 from app.api.organizations import router as organizations_router
 from app.api.documents import router as documents_router
 from app.api.search import router as search_router
+from app.api.incident_reports import router as incident_reports_router
+from app.api.incident_reports import router_cases as incident_reports_cases_router
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +51,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CIRCE Intel Desk",
-    description="Sistema desktop local de inteligÃªncia operacional.",
-    version="0.1.0-sprint01",
+    description="Sistema desktop local de inteligência operacional.",
+    version="0.1.0-sprint03",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -69,6 +72,8 @@ app.include_router(audit_router)
 app.include_router(organizations_router)
 app.include_router(documents_router)
 app.include_router(search_router)
+app.include_router(incident_reports_router)
+app.include_router(incident_reports_cases_router)
 
 
 @app.get("/health", tags=["system"])
@@ -79,7 +84,7 @@ def health() -> dict[str, str]:
 
 @app.get("/api/info", tags=["system"])
 def api_info() -> dict[str, str]:
-    """InformaÃ§Ãµes bÃ¡sicas da aplicaÃ§Ã£o."""
+    """Informações básicas da aplicação."""
     return {
         "system": "CIRCE Intel Desk",
         "version": app.version,
