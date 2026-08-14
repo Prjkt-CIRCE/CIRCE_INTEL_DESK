@@ -153,6 +153,34 @@
     </table>
   </div>
 
+  {# BOLETINS DE OCORRENCIA (RF-009) - Sprint 03-4 #}
+  <div style="margin-top: var(--space-5);" id="ir-section">
+    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
+      <div class="mono text-tertiary">--- BOLETINS DE OCORRENCIA ---</div>
+      <button type="button" id="ir-add-btn" class="btn btn--primary">[+] CADASTRAR BO</button>
+    </div>
+
+    <div id="ir-loading" class="text-secondary mono" style="font-size: var(--text-sm);">Carregando...</div>
+    <div id="ir-empty" hidden class="app-content__placeholder-message" style="margin-top: 0;">
+      Nenhum BO vinculado a este caso.
+    </div>
+
+    <table id="ir-table" hidden style="width: 100%; border-collapse: collapse;">
+      <thead>
+        <tr class="mono text-tertiary" style="font-size: var(--text-sm); border-bottom: 1px solid var(--border-subtle);">
+          <th style="padding: var(--space-2) var(--space-3) var(--space-2) 0; font-weight: 500; text-align: left;">Numero BO</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Data</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Unidade</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Tipificacao</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Resumo</th>
+          <th style="padding: var(--space-2) 0 var(--space-2) var(--space-3); font-weight: 500;"></th>
+        </tr>
+      </thead>
+      <tbody id="ir-tbody">
+      </tbody>
+    </table>
+  </div>
+
   <div style="margin-top: var(--space-5); margin-bottom: var(--space-6);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- AUDITORIA ---</div>
     <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
@@ -275,8 +303,59 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="modal-ir-backdrop" data-open="false"
+     role="dialog" aria-modal="true" aria-labelledby="modal-ir-title">
+  <div class="card" style="width: 580px; max-width: calc(100vw - var(--space-6));">
+    <div class="card__header">
+      <div class="card__title" id="modal-ir-title">CADASTRAR BOLETIM DE OCORRENCIA</div>
+      <div class="card__subtitle">RF-009 . Registro de BO com auditoria</div>
+    </div>
+    <div class="card__body">
+      <div class="field">
+        <label class="field__label field__label--required" for="ir-bo-number">Numero do BO</label>
+        <input type="text" id="ir-bo-number" class="input mono"
+               placeholder="ex.: 2026/001234" autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="field__label" for="ir-bo-date">Data do BO <span class="text-tertiary">(opcional)</span></label>
+        <input type="date" id="ir-bo-date" class="input mono">
+      </div>
+      <div class="field">
+        <label class="field__label" for="ir-issuing-unit">Unidade emissora <span class="text-tertiary">(opcional)</span></label>
+        <input type="text" id="ir-issuing-unit" class="input"
+               placeholder="ex.: 1a DP, DEIC, DENARC..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="field__label" for="ir-criminal-type">Tipificacao penal <span class="text-tertiary">(opcional)</span></label>
+        <input type="text" id="ir-criminal-type" class="input"
+               placeholder="ex.: Art. 157 CP, Trafico de drogas..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="field__label" for="ir-procedural-status">Status processual <span class="text-tertiary">(opcional)</span></label>
+        <input type="text" id="ir-procedural-status" class="input"
+               placeholder="ex.: Em andamento, Arquivado, Indiciado..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label class="field__label" for="ir-summary">Resumo <span class="text-tertiary">(opcional)</span></label>
+        <textarea id="ir-summary" class="input" rows="3"
+                  placeholder="Descricao resumida dos fatos registrados no BO..."></textarea>
+      </div>
+      <div class="field">
+        <label class="field__label" for="ir-notes">Observacoes <span class="text-tertiary">(opcional)</span></label>
+        <textarea id="ir-notes" class="input" rows="2"
+                  placeholder="Informacoes adicionais sobre este BO..."></textarea>
+      </div>
+    </div>
+    <div class="card__footer">
+      <button type="button" class="btn btn--text" id="modal-ir-cancel">Cancelar</button>
+      <button type="button" class="btn btn--primary" id="modal-ir-confirmar">Cadastrar</button>
+    </div>
+  </div>
+</div>
+
 <script src="/static/js/toast.js" defer></script>
 <script src="/static/js/documents_in_case.js" defer></script>
+<script src="/static/js/incident_reports_in_case.js" defer></script>
 <script src="/static/js/case_detail.js" defer></script>
 
 {% endblock %}
