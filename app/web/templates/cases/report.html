@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+{#
+  CIRCE Intel Desk — Relatório de Caso (RF-019)
+  Template standalone: não herda base.html, não tem sidebar.
+  Imprimível via @media print e via botão na UI.
+  Sprint 03 — Sub-passo 03-5.
+#}
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>CIRCE // Relatório — {{ case.case_code }}</title>
+  <style>
+    /* ---- Reset e base ---- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --font-sans: "Inter", system-ui, sans-serif;
+      --font-mono: "JetBrains Mono", "Courier New", monospace;
+      --color-text:    #d4d0c8;
+      --color-muted:   #7a7570;
+      --color-border:  #2e2b27;
+      --color-surface: #1a1815;
+      --color-accent:  #c8a96e;
+      --color-bg:      #111010;
+    }
+
+    @media print {
+      :root {
+        --color-text:    #111;
+        --color-muted:   #555;
+        --color-border:  #bbb;
+        --color-surface: #f8f8f6;
+        --color-accent:  #6b4a10;
+        --color-bg:      #fff;
+      }
+      body { background: #fff; }
+      .no-print { display: none !important; }
+      .page-break { page-break-before: always; }
+    }
+
+    body {
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--color-text);
+      background: var(--color-bg);
+      padding: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    /* ---- Utilitários ---- */
+    .mono { font-family: var(--font-mono); }
+    .muted { color: var(--color-muted); }
+    .accent { color: var(--color-accent); }
+
+    /* ---- Cabeçalho do relatório ---- */
+    .report-header {
+      border-bottom: 2px solid var(--color-accent);
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .report-header__brand {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-muted);
+      letter-spacing: 0.1em;
+    }
+    .report-header__case {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-accent);
+    }
+    .report-header__name {
+      font-size: 15px;
+      font-weight: 600;
+      margin-top: 0.2rem;
+    }
+    .report-header__meta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--color-muted);
+      text-align: right;
+    }
+
+    /* ---- Seções ---- */
+    .section {
+      margin-top: 1.5rem;
+    }
+    .section__title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      color: var(--color-muted);
+      border-bottom: 1px solid var(--color-border);
+      padding-bottom: 0.25rem;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    /* ---- Grid de campos ---- */
+    .fields {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 0.25rem 1rem;
+    }
+    .fields__label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-muted);
+      padding-top: 1px;
+    }
+    .fields__value {
+      font-size: 12px;
+      color: var(--color-text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ---- Badge de status ---- */
+    .badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1px 6px;
+      border: 1px solid var(--color-border);
+      border-radius: 2px;
+      color: var(--color-muted);
+    }
+    .badge--active { border-color: #4a7c59; color: #6db88a; }
+    .badge--archived { border-color: #7a3030; color: #c06060; }
+
+    /* ---- Tabelas ---- */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 0.25rem;
+    }
+    .data-table th {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--color-muted);
+      text-align: left;
+      padding: 0.3rem 0.5rem 0.3rem 0;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .data-table td {
+      padding: 0.35rem 0.5rem 0.35rem 0;
+      border-bottom: 1px solid var(--color-border);
+      vertical-align: top;
+      color: var(--color-text);
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+
+    /* ---- Vazio ---- */
+    .empty {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--color-muted);
+      padding: 0.5rem 0;
+    }
+
+    /* ---- Rodapé ---- */
+    .report-footer {
+      margin-top: 2.5rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--color-border);
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--color-muted);
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+    }
+
+    /* ---- Botão de impressão ---- */
+    .btn-print {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--color-accent);
+      color: var(--color-accent);
+      background: transparent;
+      cursor: pointer;
+      border-radius: 2px;
+      text-decoration: none;
+      margin-right: 0.5rem;
+    }
+    .btn-print:hover { background: rgba(200,169,110,0.1); }
+    .btn-back {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 0.4rem 1rem;
+      border: 1px solid var(--color-border);
+      color: var(--color-muted);
+      background: transparent;
+      cursor: pointer;
+      border-radius: 2px;
+      text-decoration: none;
+    }
+    .btn-back:hover { border-color: var(--color-muted); }
+    .actions-bar {
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="actions-bar no-print">
+    <a href="/cases/{{ case.id }}" class="btn-back">&lt; Voltar ao caso</a>
+    <button type="button" class="btn-print" onclick="window.print()">Imprimir / Salvar PDF</button>
+  </div>
+
+  <!-- Cabeçalho -->
+  <div class="report-header">
+    <div>
+      <div class="report-header__brand">CIRCE INTEL DESK &mdash; RELATÓRIO DE CASO</div>
+      <div class="report-header__case mono">{{ case.case_code }}</div>
+      <div class="report-header__name">{{ case.name }}</div>
+    </div>
+    <div class="report-header__meta">
+      <div>Gerado em</div>
+      <div>{{ generated_at }}</div>
+      <div style="margin-top:0.5rem;">Operador ID: {{ operator_id }}</div>
+    </div>
+  </div>
+
+  <!-- Dados do Caso -->
+  <div class="section">
+    <div class="section__title">--- Dados do Caso ---</div>
+    <div class="fields">
+      <span class="fields__label">Status</span>
+      <span class="fields__value">
+        {% if case.status == 'active' %}
+          <span class="badge badge--active">[ATIVO]</span>
+        {% else %}
+          <span class="badge badge--archived">[ARQUIVADO]</span>
+        {% endif %}
+      </span>
+      <span class="fields__label">Unidade</span>
+      <span class="fields__value">{{ case.unit or '—' }}</span>
+      <span class="fields__label">Responsável</span>
+      <span class="fields__value">{{ case.responsible or '—' }}</span>
+      <span class="fields__label">Nº Procedimento</span>
+      <span class="fields__value mono">{{ case.procedure_number or '—' }}</span>
+      <span class="fields__label">Data do fato</span>
+      <span class="fields__value mono">{{ case.fact_date or '—' }}</span>
+      <span class="fields__label">Tags</span>
+      <span class="fields__value mono">{{ case.tags or '—' }}</span>
+    </div>
+  </div>
+
+  <!-- Resumo -->
+  {% if case.description %}
+  <div class="section">
+    <div class="section__title">--- Resumo ---</div>
+    <p style="white-space: pre-wrap; font-size: 12px;">{{ case.description }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Notas -->
+  {% if case.notes %}
+  <div class="section">
+    <div class="section__title">--- Notas ---</div>
+    <p style="white-space: pre-wrap; font-size: 12px;">{{ case.notes }}</p>
+  </div>
+  {% endif %}
+
+  <!-- Pessoas Vinculadas -->
+  <div class="section">
+    <div class="section__title">--- Pessoas Vinculadas ---</div>
+    {% if persons %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Papel</th>
+          <th>Confiabilidade</th>
+          <th>Fonte</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lk in persons %}
+        <tr>
+          <td>{{ lk.person_name }}</td>
+          <td class="mono">{{ lk.role_in_case }}</td>
+          <td class="mono muted">{{ lk.reliability_level }}</td>
+          <td class="muted">{{ lk.source or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Nenhuma pessoa vinculada.</div>
+    {% endif %}
+  </div>
+
+  <!-- Organizações -->
+  <div class="section">
+    <div class="section__title">--- Organizações Vinculadas ---</div>
+    {% if organizations %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Tipo</th>
+          <th>Papel</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lk in organizations %}
+        <tr>
+          <td>{{ lk.org_name }}</td>
+          <td class="mono muted">{{ lk.org_type or '—' }}</td>
+          <td class="mono">{{ lk.link_type or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Nenhuma organização vinculada.</div>
+    {% endif %}
+  </div>
+
+  <!-- Boletins de Ocorrência -->
+  <div class="section">
+    <div class="section__title">--- Boletins de Ocorrência ---</div>
+    {% if incident_reports %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Número BO</th>
+          <th>Data</th>
+          <th>Unidade</th>
+          <th>Tipificação</th>
+          <th>Resumo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for ir in incident_reports %}
+        <tr>
+          <td class="mono">{{ ir.bo_number }}</td>
+          <td class="mono muted">{{ ir.bo_date or '—' }}</td>
+          <td class="muted">{{ ir.issuing_unit or '—' }}</td>
+          <td class="muted">{{ ir.criminal_type or '—' }}</td>
+          <td class="muted">{{ (ir.summary or '—')[:80] }}{% if ir.summary and ir.summary|length > 80 %}…{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Nenhum BO vinculado.</div>
+    {% endif %}
+  </div>
+
+  <!-- Documentos -->
+  <div class="section">
+    <div class="section__title">--- Documentos ---</div>
+    {% if documents %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Nome do arquivo</th>
+          <th>Formato</th>
+          <th>Tamanho</th>
+          <th>Importado em</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for doc in documents %}
+        <tr>
+          <td>{{ doc.original_filename }}</td>
+          <td class="mono muted">{{ doc.file_format|upper }}</td>
+          <td class="mono muted">{{ doc.file_size_fmt }}</td>
+          <td class="mono muted">{{ doc.imported_at_fmt }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty">Nenhum documento importado.</div>
+    {% endif %}
+  </div>
+
+  <!-- Auditoria -->
+  <div class="section">
+    <div class="section__title">--- Auditoria ---</div>
+    <div class="fields">
+      <span class="fields__label">Criado em</span>
+      <span class="fields__value mono">{{ case.created_at }}</span>
+      <span class="fields__label">Criado por (id)</span>
+      <span class="fields__value mono">{{ case.created_by or '—' }}</span>
+      <span class="fields__label">Última atualização</span>
+      <span class="fields__value mono">{{ case.updated_at or '—' }}</span>
+      <span class="fields__label">Atualizado por (id)</span>
+      <span class="fields__value mono">{{ case.updated_by or '—' }}</span>
+    </div>
+  </div>
+
+  <!-- Rodapé -->
+  <div class="report-footer">
+    <span>CIRCE Intel Desk &mdash; Documento de uso interno e restrito</span>
+    <span class="mono">{{ case.case_code }} &mdash; {{ generated_at }}</span>
+  </div>
+
+</body>
+</html>

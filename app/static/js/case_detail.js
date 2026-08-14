@@ -5,6 +5,7 @@
    AT-03.6: toggle de compartilhamento na Platea (platea_status).
    AT-03.7: toggle [NAO COMPARTILHAR] por item (person_link / document).
    Fix: label do botao Excluir/Liberar atualizado dentro do .then().
+   Sprint 03 - Sub-passo 03-5: link Gerar Relatorio (RF-019).
    ============================================================ */
 
 (function () {
@@ -37,6 +38,7 @@
   var contentEl      = null;
   var archivedNoteEl = null;
   var editBtnEl      = null;
+  var reportLinkEl   = null;
 
   var linksLoadingEl   = null;
   var linksEmptyEl     = null;
@@ -290,6 +292,11 @@
       editBtnEl.onclick = function () {
         window.location.href = "/cases?edit=" + encodeURIComponent(c.id);
       };
+    }
+
+    // Sprint 03-5: popula link do relatorio (RF-019)
+    if (reportLinkEl) {
+      reportLinkEl.href = "/cases/" + c.id + "/report";
     }
 
     showContent();
@@ -614,6 +621,7 @@
     notFoundEl     = document.getElementById("case-detail-notfound");
     archivedNoteEl = document.getElementById("case-detail-archived-note");
     editBtnEl      = document.getElementById("case-detail-edit");
+    reportLinkEl   = document.getElementById("case-detail-report");
 
     linksLoadingEl   = document.getElementById("links-loading");
     linksEmptyEl     = document.getElementById("links-empty");
