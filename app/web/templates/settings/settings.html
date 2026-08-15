@@ -143,4 +143,113 @@
   </div>
 
 </form>
+
+{# ── Backup (RF-022 CA-022.1 / CA-022.2) — Sprint 03-7 ── #}
+<div style="max-width: 640px; margin-top: var(--space-6);">
+  <div class="card">
+    <div class="card__header">
+      <span class="card__title">BACKUP</span>
+    </div>
+    <div class="card__body" style="display: flex; flex-direction: column; gap: var(--space-4);">
+
+      <p style="font-family: var(--font-sans); font-size: var(--font-size-sm); color: var(--text-secondary); margin: 0;">
+        Gera uma cópia do banco de dados e dos arquivos importados em
+        <code style="font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--text-tertiary);">data/backups/{timestamp}/</code>,
+        com manifesto de integridade SHA-256.
+      </p>
+
+      <div style="display: flex; align-items: flex-start; gap: var(--space-4); flex-wrap: wrap;">
+        <button
+          type="button"
+          id="btn-backup"
+          class="btn btn--primary"
+          onclick="circeRunBackup()"
+        >
+          GERAR BACKUP
+        </button>
+
+        <div id="backup-result" style="display: none; flex: 1; min-width: 240px;"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  async function circeRunBackup() {
+    const btn    = document.getElementById("btn-backup");
+    const result = document.getElementById("backup-result");
+
+    btn.disabled    = true;
+    btn.textContent = "Gerando…";
+    result.style.display = "none";
+    result.innerHTML     = "";
+
+    try {
+      const resp = await fetch("/api/backup", { method: "POST" });
+      const data = await resp.json();
+
+      if (resp.ok && data.ok) {
+        const ts = new Date(data.timestamp).toLocaleString("pt-BR", {
+          day: "2-digit", month: "2-digit", year: "numeric",
+          hour: "2-digit", minute: "2-digit", second: "2-digit",
+        });
+        result.innerHTML = `
+          <div style="
+            border-left: 3px solid #4a7c59;
+            padding: var(--space-3) var(--space-4);
+            background: var(--bg-elevated);
+            font-family: var(--font-mono);
+            font-size: var(--font-size-sm);
+            line-height: 1.7;
+          ">
+            <div style="color: #6db88a; font-weight: 600; margin-bottom: var(--space-1);">✓ Backup concluído</div>
+            <div style="color: var(--text-secondary);">Gerado em: <span style="color: var(--text-primary);">${ts}</span></div>
+            <div style="color: var(--text-secondary);">Arquivos: <span style="color: var(--text-primary);">${data.total_files} (${data.total_size_fmt})</span></div>
+            <div style="color: var(--text-secondary); margin-top: var(--space-1); word-break: break-all;">
+              Pasta: <span style="color: var(--text-tertiary);">${data.backup_dir}</span>
+            </div>
+          </div>`;
+      } else {
+        const msg = data.detail || "Erro desconhecido.";
+        result.innerHTML = `
+          <div style="
+            border-left: 3px solid var(--error);
+            padding: var(--space-3) var(--space-4);
+            background: var(--bg-elevated);
+            font-family: var(--font-mono);
+            font-size: var(--font-size-sm);
+            color: var(--error);
+          ">
+            <div style="font-weight: 600; margin-bottom: var(--space-1);">✗ Falha no backup</div>
+            <div>${msg}</div>
+          </div>`;
+      }
+    } catch (err) {
+      result.innerHTML = `
+        <div style="
+          border-left: 3px solid var(--error);
+          padding: var(--space-3) var(--space-4);
+          background: var(--bg-elevated);
+          font-family: var(--font-mono);
+          font-size: var(--font-size-sm);
+          color: var(--error);
+        ">
+          <div style="font-weight: 600; margin-bottom: var(--space-1);">✗ Erro de comunicação</div>
+          <div>${err.message}</div>
+        </div>`;
+    } finally {
+      btn.disabled    = false;
+      btn.textContent = "GERAR BACKUP";
+      result.style.display = "block";
+    }
+  }
+
+  window.circeRunBackup = circeRunBackup;
+})();
+</script>
+
 {% endblock %}

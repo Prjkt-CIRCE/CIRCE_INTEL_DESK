@@ -12,6 +12,7 @@ Sprint 01 — Bloco 9 (9.4): registrado o router de Pessoas (RF-002).
 Sprint 01 — Bloco 10 (10.4): registrado o router de Vínculos (RF-003).
 Sprint 01 — Bloco 11.4: registrado o router de Auditoria (RF-020).
 Sprint 03 — Sub-passo 03-3: registrado o router de BOs (RF-009).
+Sprint 03 — Sub-passo 03-7: registrado o router de Backup (RF-022).
 """
 import logging
 from contextlib import asynccontextmanager
@@ -34,6 +35,7 @@ from app.api.documents import router as documents_router
 from app.api.search import router as search_router
 from app.api.incident_reports import router as incident_reports_router
 from app.api.incident_reports import router_cases as incident_reports_cases_router
+from app.api.backup import router as backup_router
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,7 @@ app.include_router(documents_router)
 app.include_router(search_router)
 app.include_router(incident_reports_router)
 app.include_router(incident_reports_cases_router)
+app.include_router(backup_router)
 
 
 @app.get("/health", tags=["system"])
