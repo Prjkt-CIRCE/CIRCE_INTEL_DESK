@@ -1,5 +1,5 @@
-# CIRCE Intel Desk - dependencias da Sprint 0
-# Conforme ADR-001 (stack) e 06_CRITERIOS_DE_ACEITE.md (Sprint 0).
+# CIRCE Intel Desk - dependencias
+# Conforme ADR-001 (stack) e 06_CRITERIOS_DE_ACEITE.md.
 # Versoes fixadas para reprodutibilidade entre as maquinas de desenvolvimento.
 
 fastapi==0.115.6
@@ -12,6 +12,34 @@ pydantic==2.10.3
 pydantic-settings==2.7.0
 python-multipart==0.0.20
 pytest==8.3.4
+httpx==0.28.1
 
 # === Timezone data (necessario no Windows para Alembic com timezone=UTC) ===
 tzdata==2026.2
+
+# === PDF — geracao de relatorio (Sprint 03-6) ===
+# Requer instalacao adicional: playwright install chromium
+playwright==1.49.0
+
+# === OCR — Sprint 04 (RF-011) ===
+# Engine hibrida: pytesseract (PDFs via PyMuPDF) + EasyOCR (imagens)
+#
+# DEPENDENCIA EXTERNA obrigatoria (uma vez por maquina):
+#   1. Tesseract OCR:
+#      winget install UB-Mannheim.TesseractOCR
+#      + fix PATH manual (ver ESTADO_DO_PROJETO.md secao 5)
+#      + baixar por.traineddata de tessdata_best:
+#        Invoke-WebRequest -Uri "https://github.com/tesseract-ocr/tessdata_best/raw/main/por.traineddata"
+#                          -OutFile "C:\Program Files\Tesseract-OCR\tessdata\por.traineddata"
+#
+#   2. Modelos EasyOCR (~600 MB, apenas uma vez, requer internet):
+#      python -c "import easyocr; easyocr.Reader(['pt']); print('OK')"
+#      Apos o download funciona 100% offline.
+#
+#   3. PyTorch (~2 GB) e instalado automaticamente como dependencia do easyocr.
+#
+# Verificar ambiente completo com: python scripts/test_ocr.py
+pytesseract==0.3.13
+easyocr==1.7.2
+pymupdf==1.28.2
+pillow==12.3.0
