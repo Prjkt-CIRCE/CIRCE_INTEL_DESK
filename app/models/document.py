@@ -1,25 +1,29 @@
 """
-CIRCE Intel Desk - Modelo Document (documento importado ao caso).
-
-Referencia: 05_MODELO_DE_DADOS.md S3.6, RF-007.
-Formatos aceitos: pdf, docx, txt, jpg, png.
-imported_at: momento da operacao de importacao (definido pelo servico).
-created_at:  timestamp de criacao do registro no banco.
-
-Sprint 01-B - Sub-passo B8.
-AT-03.7: campo platea_exclude adicionado (marcacao [NAO COMPARTILHAR] por item).
+CIRCE Intel Desk — Modelo Document
+Sprint 01-B — B8.
+Sprint 04 — 04-2: adicionado relationship document_text (RF-011).
 """
+from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 
 
 def _utcnow() -> datetime:
+    from datetime import timezone
     return datetime.now(timezone.utc)
 
 
@@ -55,7 +59,16 @@ class Document(Base):
         DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
     )
 
+    # --- Relacionamentos ---
     case = relationship("Case", back_populates="documents")
+
+    # Sprint 04 — RF-011: texto OCR extraído (1:1, cascade delete)
+    document_text = relationship(
+        "DocumentText",
+        back_populates="document",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     __table_args__ = (
         Index("idx_documents_case_id", "case_id"),

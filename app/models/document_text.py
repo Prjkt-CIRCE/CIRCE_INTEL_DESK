@@ -1,22 +1,22 @@
 """
-app/models/document_text.py
-Sprint 04 — RF-011 (OCR e Documentos)
+CIRCE Intel Desk — Modelo DocumentText (RF-011)
+Sprint 04 — Sub-passo 04-1 (modelo) / 04-2 (relationship document).
 
-Armazena o resultado de OCR aplicado a um documento.
-Cada documento tem no máximo um registro DocumentText (UNIQUE em document_id).
+Representa o texto extraído por OCR de um Document, incluindo status
+do processamento e de validação humana.
 
-Ciclo de vida do OCR:
-  ocr_status:        pending → processing → done
-                                          ↘ failed
+Ciclo de vida de ocr_status:
+  pending -> processing -> done | failed
 
-Ciclo de validação do operador (CA-011.4):
-  validation_status: pending → validated
-                             → rejected
+Ciclo de vida de validation_status:
+  pending -> validated | rejected
 
-Invariante: o arquivo original (documents.file_path) NUNCA é alterado (CA-011.5).
+CA-011.4: validation_status inicia como "pending".
+CA-011.5: Este modelo nao toca stored_path.
+CA-011.7: Toda decisao do operador (validate/reject) é auditada pelo ocr_service.
 """
-
-from __future__ import annotations
+from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import (
     Column,
@@ -30,15 +30,18 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from app.database.base import Base
+from app.models.base import Base
 
 
 class DocumentText(Base):
     __tablename__ = "document_texts"
 
+    __table_args__ = (
+        UniqueConstraint("document_id", name="uq_document_texts_document_id"),
+    )
+
     id = Column(Integer, primary_key=True, index=True)
 
-    # FK para documents.id — CASCADE: deletar doc apaga o resultado OCR junto
     document_id = Column(
         Integer,
         ForeignKey("documents.id", ondelete="CASCADE"),
@@ -47,17 +50,16 @@ class DocumentText(Base):
         index=True,
     )
 
-    # Engine que processou: "tesseract" (PDFs via PyMuPDF) ou "easyocr" (imagens)
+    # Engine que gerou raw_text: "tesseract" | "easyocr"
     engine = Column(String(20), nullable=True)
 
-    # Texto bruto extraído pelo OCR (gerado automaticamente — imutável após criação)
+    # Texto bruto extraido pelo OCR (nunca editado diretamente pelo operador)
     raw_text = Column(Text, nullable=True)
 
-    # Texto após revisão/correção do operador (pode diferir do raw_text)
+    # Texto corrigido/aprovado pelo operador após validação
     validated_text = Column(Text, nullable=True)
 
-    # Status do processo OCR
-    # Valores: "pending" | "processing" | "done" | "failed"
+    # "pending" | "processing" | "done" | "failed"
     ocr_status = Column(
         String(20),
         nullable=False,
@@ -65,8 +67,7 @@ class DocumentText(Base):
         server_default="pending",
     )
 
-    # Status de validação pelo operador (CA-011.4 — nasce como "pending")
-    # Valores: "pending" | "validated" | "rejected"
+    # "pending" | "validated" | "rejected"
     validation_status = Column(
         String(20),
         nullable=False,
@@ -74,19 +75,18 @@ class DocumentText(Base):
         server_default="pending",
     )
 
-    # Quem validou/rejeitou e quando (preenchido pelo service em 04-2)
     validated_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+
     validated_at = Column(DateTime(timezone=True), nullable=True)
 
-    # Motivo de rejeição (obrigatório se validation_status = "rejected")
     rejection_reason = Column(String(500), nullable=True)
 
-    # Timestamps
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
     )
+
     updated_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -94,18 +94,21 @@ class DocumentText(Base):
         onupdate=func.now(),
     )
 
-    # Relacionamento com o operador que validou
-    validated_by_user = relationship("User", foreign_keys=[validated_by])
+    # --- Relacionamentos ---
 
-    # Nota: relationship com Document será adicionado em 04-2 (ocr_service)
-    # via back_populates no modelo Document.
-    # Por ora, acesso via document_id diretamente nos services.
-
-    __table_args__ = (
-        UniqueConstraint("document_id", name="uq_document_texts_document_id"),
+    # Document pai (CA-011.5: acesso ao stored_path e read-only no ocr_service)
+    document = relationship(
+        "Document",
+        back_populates="document_text",
     )
 
-    def __repr__(self) -> str:
+    # Operador que validou/rejeitou (pode ser None enquanto pendente)
+    validated_by_user = relationship(
+        "User",
+        foreign_keys=[validated_by],
+    )
+
+    def __repr__(self):
         return (
             f"<DocumentText id={self.id} document_id={self.document_id} "
             f"ocr_status={self.ocr_status!r} validation_status={self.validation_status!r}>"
