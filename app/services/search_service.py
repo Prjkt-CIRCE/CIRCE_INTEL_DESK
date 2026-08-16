@@ -1,8 +1,7 @@
 """
 CIRCE Intel Desk — Serviço de Busca FTS5.
-
 Gerencia índices virtuais FTS5 (fts_cases, fts_persons,
-fts_organizations, fts_documents) e expõe busca por prefixo
+fts_organizations, fts_documents, fts_document_texts) e expõe busca por prefixo
 com ranking BM25.
 
 Regras:
@@ -11,6 +10,8 @@ Regras:
 - Queries FTS5 malformadas retornam [] sem propagar exceção.
 
 Sprint 01-B — Busca FTS5.
+Sprint 04 — Sub-passo 04-4: fts_document_texts (CA-011.6).
+  index_document_text / remove_document_text / rebuild atualizado / search atualizado.
 """
 from __future__ import annotations
 
@@ -46,11 +47,16 @@ def _sanitize_query(raw: str) -> str:
 def rebuild_index(db: Session) -> dict[str, Any]:
     """
     Reconstrói o índice FTS5 completo a partir das tabelas principais.
-
     Retorna contagens de registros indexados por entidade.
     """
     # Limpa todos os índices
-    for tbl in ("fts_cases", "fts_persons", "fts_organizations", "fts_documents"):
+    for tbl in (
+        "fts_cases",
+        "fts_persons",
+        "fts_organizations",
+        "fts_documents",
+        "fts_document_texts",
+    ):
         db.execute(text(f"DELETE FROM {tbl}"))
 
     # Cases (exclui arquivados)
@@ -101,14 +107,31 @@ def rebuild_index(db: Session) -> dict[str, Any]:
     """))
     docs_count = db.execute(text("SELECT COUNT(*) FROM fts_documents")).scalar()
 
-    db.commit()
+    # Document texts — apenas textos validados (CA-011.6)
+    db.execute(text("""
+        INSERT INTO fts_document_texts
+            (document_id, original_filename, title, validated_text)
+        SELECT dt.document_id,
+               d.original_filename,
+               COALESCE(d.title, ''),
+               dt.validated_text
+        FROM document_texts dt
+        JOIN documents d ON d.id = dt.document_id
+        WHERE dt.validation_status = 'validated'
+          AND dt.validated_text IS NOT NULL
+    """))
+    doc_texts_count = db.execute(
+        text("SELECT COUNT(*) FROM fts_document_texts")
+    ).scalar()
 
+    db.commit()
     return {
         "indexed": {
             "cases": cases_count,
             "persons": persons_count,
             "organizations": orgs_count,
             "documents": docs_count,
+            "document_texts": doc_texts_count,
         }
     }
 
@@ -189,6 +212,49 @@ def index_document(db: Session, doc: Document) -> None:
     )
 
 
+def index_document_text(db: Session, document_text: Any) -> None:
+    """
+    Upsert do texto OCR validado no índice FTS5 (CA-011.6).
+    Não commita — chamado dentro da transação D47 do ocr_service/router.
+
+    Parâmetros:
+      document_text: instância de DocumentText com validated_text preenchido.
+    """
+    doc_id = document_text.document_id
+    # Sempre remove entrada anterior (idempotente)
+    db.execute(
+        text("DELETE FROM fts_document_texts WHERE document_id = :id"),
+        {"id": doc_id},
+    )
+    if document_text.validated_text:
+        doc = db.get(Document, doc_id)
+        if doc:
+            db.execute(
+                text("""
+                    INSERT INTO fts_document_texts
+                        (document_id, original_filename, title, validated_text)
+                    VALUES (:doc_id, :fname, :title, :text)
+                """),
+                {
+                    "doc_id": doc_id,
+                    "fname":  doc.original_filename,
+                    "title":  doc.title or "",
+                    "text":   document_text.validated_text,
+                },
+            )
+
+
+def remove_document_text(db: Session, document_id: int) -> None:
+    """
+    Remove texto OCR do índice FTS5 (chamado em reject ou reset).
+    Não commita.
+    """
+    db.execute(
+        text("DELETE FROM fts_document_texts WHERE document_id = :id"),
+        {"id": document_id},
+    )
+
+
 # ---------------------------------------------------------------------------
 # Busca
 # ---------------------------------------------------------------------------
@@ -196,10 +262,13 @@ def index_document(db: Session, doc: Document) -> None:
 def search(db: Session, query: str, limit: int = 20) -> list[dict]:
     """
     Busca FTS5 em todas as entidades com ranking BM25.
-
     Retorna lista de dicts com chaves: id, type, label, subtitle, score.
     Score BM25: menor = mais relevante.
     Retorna [] se query vazia ou em caso de erro FTS5.
+
+    Nota: um documento pode aparecer duas vezes se corresponder tanto pelo
+    nome/título (fts_documents) quanto pelo conteúdo OCR (fts_document_texts).
+    A UI deve deduplicar por (id, type) se necessário.
     """
     if not query or not query.strip():
         return []
@@ -252,6 +321,20 @@ def search(db: Session, query: str, limit: int = 20) -> list[dict]:
                    title AS subtitle, bm25(fts_documents) AS score
             FROM fts_documents
             WHERE fts_documents MATCH :q
+            ORDER BY score
+            LIMIT :lim
+            """,
+        ),
+        (
+            "document_ocr",
+            """
+            SELECT CAST(document_id AS INTEGER) AS id,
+                   original_filename AS label,
+                   'document' AS type,
+                   '[OCR] ' || SUBSTR(validated_text, 1, 80) AS subtitle,
+                   bm25(fts_document_texts) AS score
+            FROM fts_document_texts
+            WHERE fts_document_texts MATCH :q
             ORDER BY score
             LIMIT :lim
             """,
