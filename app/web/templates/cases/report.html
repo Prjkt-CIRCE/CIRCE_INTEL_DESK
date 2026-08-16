@@ -4,6 +4,7 @@
   Template standalone: não herda base.html, não tem sidebar.
   Imprimível via @media print e via botão na UI.
   Sprint 03 — Sub-passo 03-5.
+  Sprint 03 — Sub-passo 03-6: @page e print CSS reforçados para PDF via Playwright.
 #}
 <html lang="pt-BR">
 <head>
@@ -26,6 +27,12 @@
       --color-bg:      #111010;
     }
 
+    /* ---- Configuração de página para PDF / impressão ---- */
+    @page {
+      size: A4;
+      margin: 20mm 15mm 22mm 20mm;
+    }
+
     @media print {
       :root {
         --color-text:    #111;
@@ -35,9 +42,62 @@
         --color-accent:  #6b4a10;
         --color-bg:      #fff;
       }
-      body { background: #fff; }
+
+      html, body {
+        background: #fff;
+        padding: 0;
+        max-width: 100%;
+        font-size: 11px;
+      }
+
       .no-print { display: none !important; }
-      .page-break { page-break-before: always; }
+      .page-break { page-break-before: always; break-before: page; }
+
+      /* Cabeçalho e seções não quebram no meio */
+      .report-header {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      .section {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* Título de seção fica sempre com o conteúdo que o segue */
+      .section__title {
+        page-break-after: avoid;
+        break-after: avoid;
+      }
+
+      /* Campos de grid não separam */
+      .fields {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* Parágrafos com controle de órfãs/viúvas */
+      p {
+        orphans: 3;
+        widows: 3;
+      }
+
+      /* Cabeçalho de tabela repete em cada página */
+      thead {
+        display: table-header-group;
+      }
+
+      /* Linha de tabela não parte no meio */
+      tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+
+      /* Rodapé não separa */
+      .report-footer {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
     }
 
     body {
@@ -225,6 +285,7 @@
   <div class="actions-bar no-print">
     <a href="/cases/{{ case.id }}" class="btn-back">&lt; Voltar ao caso</a>
     <button type="button" class="btn-print" onclick="window.print()">Imprimir / Salvar PDF</button>
+    <a href="/api/cases/{{ case.id }}/report.pdf" class="btn-print" style="margin-right:0;">&#8595; Baixar PDF</a>
   </div>
 
   <!-- Cabeçalho -->

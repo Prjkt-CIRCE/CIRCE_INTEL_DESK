@@ -1,20 +1,21 @@
 """
-CIRCE Intel Desk — Serviço de Boletins de Ocorrência (RF-009).
-
-Operações: create, update, archive, get, list, link_person, unlink_person,
+CIRCE Intel Desk — Servico de Boletins de Ocorrencia (RF-009).
+Operacoes: create, update, archive, get, list, link_person, unlink_person,
 list_persons_by_report.
-
-Transação e auditoria (ADR-003 §2.4 + ADR-003a) — mesmo contrato D47:
+Transacao e auditoria (ADR-003 §2.4 + ADR-003a) — mesmo contrato D47:
     1. db.execute(text("BEGIN IMMEDIATE"))     -> lock de escrita
     2. db.add(entidade); db.flush()            -> materializa entity_id
     3. audit_service.log_action(..., manage_transaction=False)
-    4. db.commit()                             -> commit único; falha -> rollback
-
+    4. db.commit()                             -> commit unico; falha -> rollback
 Strings de action (ADR-003 §3.2):
   "incident_report_create", "incident_report_update", "incident_report_archive",
   "incident_report_person_link_create", "incident_report_person_link_remove".
-
 Sprint 03 — Sub-passo 03-2.
+Correcoes Sprint 04-6:
+  - criminal_type (schema) mapeado para criminal_classification (modelo).
+  - notes (schema) ignorado: coluna nao existe no modelo IncidentReport.
+  - update usa _SCHEMA_TO_MODEL para renomear campos antes de setattr.
+  - _now() retorna datetime (nao string): created_at/updated_at sao DateTime.
 """
 from __future__ import annotations
 
@@ -32,20 +33,50 @@ from app.services import audit_service
 _ENTITY_TYPE = "incident_report"
 _LINK_ENTITY_TYPE = "incident_report_person_link"
 
-# Papéis válidos para role_in_report (CA-009.3)
+# Papeis validos para role_in_report (CA-009.3)
 ROLES_VALIDOS = {"vitima", "autor", "comunicante", "testemunha", "outro"}
+
+# ---------------------------------------------------------------------------
+# Mapeamento schema → modelo (campos com nomes distintos)
+# ---------------------------------------------------------------------------
+
+# Campos do schema Pydantic cujo nome difere do atributo no modelo SQLAlchemy.
+_SCHEMA_TO_MODEL: dict[str, str] = {
+    "criminal_type": "criminal_classification",
+}
+
+# Campos do schema que nao existem no modelo — silenciosamente ignorados.
+# Pendente: adicionar coluna 'notes' ao modelo + migracao futura.
+_SCHEMA_IGNORED: frozenset[str] = frozenset({"notes"})
+
+
+def _apply_changes(report: IncidentReport, changes: dict) -> list[str]:
+    """
+    Aplica changes (model_dump) ao IncidentReport, respeitando o mapeamento
+    de nomes e ignorando campos sem coluna no modelo.
+    Retorna lista de campos do modelo que realmente mudaram.
+    """
+    changed_fields: list[str] = []
+    for field, value in changes.items():
+        if field in _SCHEMA_IGNORED:
+            continue
+        model_field = _SCHEMA_TO_MODEL.get(field, field)
+        if getattr(report, model_field, None) != value:
+            setattr(report, model_field, value)
+            changed_fields.append(model_field)
+    return changed_fields
 
 
 # ---------------------------------------------------------------------------
-# Exceções de domínio
+# Excecoes de dominio
 # ---------------------------------------------------------------------------
 
 class IncidentReportNotFoundError(Exception):
-    """BO não encontrado pelo id informado."""
+    """BO nao encontrado pelo id informado."""
 
 
 class DuplicateIRPersonLinkError(Exception):
-    """Já existe vínculo ativo com o mesmo BO, pessoa e papel."""
+    """Ja existe vinculo ativo com o mesmo BO, pessoa e papel."""
 
     def __init__(
         self,
@@ -59,8 +90,8 @@ class DuplicateIRPersonLinkError(Exception):
         self.role_in_report = role_in_report
         self.existing_link_id = existing_link_id
         super().__init__(
-            f"Vínculo BO {incident_report_id} + pessoa {person_id} + "
-            f"papel {role_in_report!r} já existe (id={existing_link_id})."
+            f"Vinculo BO {incident_report_id} + pessoa {person_id} + "
+            f"papel {role_in_report!r} ja existe (id={existing_link_id})."
         )
 
 
@@ -68,8 +99,9 @@ class DuplicateIRPersonLinkError(Exception):
 # Helpers internos
 # ---------------------------------------------------------------------------
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f") + "Z"
+def _now() -> datetime:
+    """Retorna datetime UTC atual — compativel com colunas DateTime do modelo."""
+    return datetime.now(timezone.utc)
 
 
 # ---------------------------------------------------------------------------
@@ -81,18 +113,19 @@ def create_incident_report(
     data: IncidentReportCreate,
     user_id: int,
 ) -> IncidentReport:
-    """Cria um BO e registra auditoria na mesma transação (CA-009.1, CA-009.2)."""
+    """Cria um BO e registra auditoria na mesma transacao (CA-009.1, CA-009.2)."""
     db.execute(text("BEGIN IMMEDIATE"))
     try:
-        now = _now_iso()
+        now = _now()
         report = IncidentReport(
             bo_number=data.bo_number,
             bo_date=data.bo_date,
             issuing_unit=data.issuing_unit,
             summary=data.summary,
-            criminal_type=data.criminal_type,
+            # schema usa "criminal_type"; modelo usa "criminal_classification"
+            criminal_classification=data.criminal_type,
             procedural_status=data.procedural_status,
-            notes=data.notes,
+            # "notes" ignorado: coluna nao existe no modelo (pendente sprint futura)
             case_id=data.case_id,
             document_id=data.document_id,
             status="active",
@@ -101,7 +134,6 @@ def create_incident_report(
         )
         db.add(report)
         db.flush()
-
         audit_service.log_action(
             db,
             action="incident_report_create",
@@ -112,7 +144,6 @@ def create_incident_report(
             + (f" — caso {report.case_id}" if report.case_id else ""),
             manage_transaction=False,
         )
-
         db.commit()
         db.refresh(report)
         return report
@@ -127,7 +158,7 @@ def update_incident_report(
     data: IncidentReportUpdate,
     user_id: int,
 ) -> IncidentReport:
-    """Edita campos de um BO. Não loga se nada mudou."""
+    """Edita campos de um BO. Nao loga se nada mudou."""
     report = db.get(IncidentReport, report_id)
     if report is None:
         raise IncidentReportNotFoundError(report_id)
@@ -138,20 +169,15 @@ def update_incident_report(
 
     db.execute(text("BEGIN IMMEDIATE"))
     try:
-        changed_fields = []
-        for field, value in changes.items():
-            if getattr(report, field) != value:
-                setattr(report, field, value)
-                changed_fields.append(field)
+        changed_fields = _apply_changes(report, changes)
 
         if not changed_fields:
             db.rollback()
             return report
 
-        report.updated_at = _now_iso()
+        report.updated_at = _now()
         report.updated_by = user_id
         db.flush()
-
         audit_service.log_action(
             db,
             action="incident_report_update",
@@ -162,7 +188,6 @@ def update_incident_report(
             metadata={"changed_fields": sorted(changed_fields)},
             manage_transaction=False,
         )
-
         db.commit()
         db.refresh(report)
         return report
@@ -176,7 +201,7 @@ def archive_incident_report(
     report_id: int,
     user_id: int,
 ) -> IncidentReport:
-    """Arquivamento lógico. Idempotente — não loga se já arquivado."""
+    """Arquivamento logico. Idempotente — nao loga se ja arquivado."""
     report = db.get(IncidentReport, report_id)
     if report is None:
         raise IncidentReportNotFoundError(report_id)
@@ -187,10 +212,9 @@ def archive_incident_report(
     db.execute(text("BEGIN IMMEDIATE"))
     try:
         report.status = "archived"
-        report.updated_at = _now_iso()
+        report.updated_at = _now()
         report.updated_by = user_id
         db.flush()
-
         audit_service.log_action(
             db,
             action="incident_report_archive",
@@ -200,7 +224,6 @@ def archive_incident_report(
             description=f"BO {report.bo_number!r} arquivado",
             manage_transaction=False,
         )
-
         db.commit()
         db.refresh(report)
         return report
@@ -231,7 +254,7 @@ def list_incident_reports(
 
 
 # ---------------------------------------------------------------------------
-# Vínculos BO ↔ Pessoa (CA-009.3)
+# Vinculos BO ↔ Pessoa (CA-009.3)
 # ---------------------------------------------------------------------------
 
 def link_person(
@@ -244,22 +267,21 @@ def link_person(
     user_id: int,
 ) -> IncidentReportPersonLink:
     """Vincula pessoa a BO com papel declarado (CA-009.3).
-
     Papel deve ser um dos valores de ROLES_VALIDOS.
-    Vínculo duplicado (mesmo BO + pessoa + papel, active=1) levanta
+    Vinculo duplicado (mesmo BO + pessoa + papel, active=1) levanta
     DuplicateIRPersonLinkError.
-    Vínculo previamente removido (active=0) é reativado silenciosamente
-    (mesmo espírito de D-B10-05).
+    Vinculo previamente removido (active=0) e reativado silenciosamente
+    (mesmo espirito de D-B10-05).
     """
     if role_in_report not in ROLES_VALIDOS:
         raise ValueError(
-            f"role_in_report {role_in_report!r} inválido. "
+            f"role_in_report {role_in_report!r} invalido. "
             f"Valores aceitos: {sorted(ROLES_VALIDOS)}"
         )
 
     db.execute(text("BEGIN IMMEDIATE"))
     try:
-        # Verificar existência do BO
+        # Verificar existencia do BO
         report = db.get(IncidentReport, incident_report_id)
         if report is None:
             db.rollback()
@@ -279,7 +301,7 @@ def link_person(
                 incident_report_id, person_id, role_in_report, existente_ativo.id
             )
 
-        # Verificar vínculo removido para reativação (D-B10-05)
+        # Verificar vinculo removido para reativacao (D-B10-05)
         stmt_removido = select(IncidentReportPersonLink).where(
             IncidentReportPersonLink.incident_report_id == incident_report_id,
             IncidentReportPersonLink.person_id == person_id,
@@ -287,17 +309,13 @@ def link_person(
             IncidentReportPersonLink.active == 0,
         )
         removido = db.execute(stmt_removido).scalars().first()
-
-        now = _now_iso()
-
+        now = _now()
         if removido is not None:
-            # Reativação silenciosa
             removido.active = 1
             removido.notes = notes
             removido.created_at = now
             removido.created_by = user_id
             db.flush()
-
             audit_service.log_action(
                 db,
                 action="incident_report_person_link_create",
@@ -305,18 +323,17 @@ def link_person(
                 entity_type=_LINK_ENTITY_TYPE,
                 entity_id=removido.id,
                 description=(
-                    f"Vínculo BO {incident_report_id} + pessoa {person_id} "
+                    f"Vinculo BO {incident_report_id} + pessoa {person_id} "
                     f"reativado com papel {role_in_report!r}"
                 ),
                 metadata={"reactivated": True},
                 manage_transaction=False,
             )
-
             db.commit()
             db.refresh(removido)
             return removido
 
-        # Novo vínculo
+        # Novo vinculo
         link = IncidentReportPersonLink(
             incident_report_id=incident_report_id,
             person_id=person_id,
@@ -328,7 +345,6 @@ def link_person(
         )
         db.add(link)
         db.flush()
-
         audit_service.log_action(
             db,
             action="incident_report_person_link_create",
@@ -336,12 +352,11 @@ def link_person(
             entity_type=_LINK_ENTITY_TYPE,
             entity_id=link.id,
             description=(
-                f"Vínculo BO {incident_report_id} + pessoa {person_id} "
+                f"Vinculo BO {incident_report_id} + pessoa {person_id} "
                 f"criado com papel {role_in_report!r}"
             ),
             manage_transaction=False,
         )
-
         db.commit()
         db.refresh(link)
         return link
@@ -358,18 +373,17 @@ def unlink_person(
     link_id: int,
     user_id: int,
 ) -> Optional[IncidentReportPersonLink]:
-    """Remove vínculo BO↔Pessoa (exclusão lógica). Idempotente. Retorna None se não existir."""
+    """Remove vinculo BO↔Pessoa (exclusao logica). Idempotente. Retorna None se nao existir."""
     link = db.get(IncidentReportPersonLink, link_id)
     if link is None:
         return None
     if link.active == 0:
-        return link  # já removido; idempotente
+        return link  # ja removido; idempotente
 
     db.execute(text("BEGIN IMMEDIATE"))
     try:
         link.active = 0
         db.flush()
-
         audit_service.log_action(
             db,
             action="incident_report_person_link_remove",
@@ -377,12 +391,11 @@ def unlink_person(
             entity_type=_LINK_ENTITY_TYPE,
             entity_id=link.id,
             description=(
-                f"Vínculo BO {link.incident_report_id} + pessoa {link.person_id} "
+                f"Vinculo BO {link.incident_report_id} + pessoa {link.person_id} "
                 f"removido (papel {link.role_in_report!r})"
             ),
             manage_transaction=False,
         )
-
         db.commit()
         db.refresh(link)
         return link
@@ -397,7 +410,7 @@ def list_persons_by_report(
     *,
     include_removed: bool = False,
 ) -> list[IncidentReportPersonLink]:
-    """Lista vínculos de um BO. Leitura pura."""
+    """Lista vinculos de um BO. Leitura pura."""
     stmt = select(IncidentReportPersonLink).where(
         IncidentReportPersonLink.incident_report_id == incident_report_id
     )
@@ -412,7 +425,7 @@ def list_reports_by_person(
     *,
     include_removed: bool = False,
 ) -> list[IncidentReportPersonLink]:
-    """Lista vínculos de uma pessoa. Leitura pura."""
+    """Lista vinculos de uma pessoa. Leitura pura."""
     stmt = select(IncidentReportPersonLink).where(
         IncidentReportPersonLink.person_id == person_id
     )

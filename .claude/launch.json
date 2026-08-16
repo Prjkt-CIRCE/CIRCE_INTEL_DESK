@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "circe",
+      "runtimeExecutable": "C:/Projetos/CIRCE_INTEL_DESK/.venv/Scripts/python.exe",
+      "runtimeArgs": ["run.py"],
+      "port": 8765,
+      "url": "http://127.0.0.1:8765"
+    }
+  ]
+}

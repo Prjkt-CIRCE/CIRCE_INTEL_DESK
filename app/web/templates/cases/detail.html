@@ -1,27 +1,20 @@
 {% extends "base.html" %}
-
 {% block title %}CIRCE // Detalhe do caso{% endblock %}
-
 {% block content %}
-
 <div class="mono" style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2);">
   <a href="/cases" class="btn btn--text" id="case-detail-back">&lt; CASOS</a>
   <span class="text-tertiary">[Esc]</span>
 </div>
-
 <div id="case-detail-loading" class="app-content__placeholder-message">
   Carregando caso<span class="mono">...</span>
 </div>
-
 <div id="case-detail-notfound" class="app-content__placeholder-message" hidden>
   Caso nao encontrado. Ele pode ter sido removido ou o endereco esta incorreto.
   <div style="margin-top: var(--space-3);">
     <a href="/cases" class="btn btn--primary">Voltar para a lista</a>
   </div>
 </div>
-
 <div id="case-detail-content" hidden>
-
   <div class="app-content__page-header">
     <h1 class="app-content__page-title" style="display: flex; align-items: baseline; gap: var(--space-3); flex-wrap: wrap;">
       <span class="mono text-secondary" data-field="case_code">-</span>
@@ -38,19 +31,16 @@
       <a id="case-detail-report" href="#" class="btn btn--text" style="font-size:0.85rem;" target="_blank">Gerar Relatorio</a>
     </div>
   </div>
-
   <div id="case-detail-archived-note" class="card" hidden style="margin-top: var(--space-4);">
     <div class="card__body text-secondary">
       Este caso esta <strong>arquivado</strong>. A reativacao de casos arquivados
       sera tratada em etapa futura.
     </div>
   </div>
-
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- RESUMO ---</div>
     <p data-field="description" class="text-secondary" style="white-space: pre-wrap; margin: 0;">-</p>
   </div>
-
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- DADOS DO CASO ---</div>
     <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
@@ -60,17 +50,14 @@
       <span class="mono" data-field="fact_date">-</span>
     </div>
   </div>
-
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- TAGS ---</div>
     <p data-field="tags" class="mono text-secondary" style="margin: 0;">-</p>
   </div>
-
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- NOTAS ---</div>
     <p data-field="notes" class="text-secondary" style="white-space: pre-wrap; margin: 0;">-</p>
   </div>
-
   {# PLATEA (AT-03.6) #}
   <div style="margin-top: var(--space-5);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- PLATEA ---</div>
@@ -90,7 +77,6 @@
       Itens sensiveis podem ser marcados como [NAO COMPARTILHAR] individualmente (AT-03.7).
     </div>
   </div>
-
   {# PESSOAS VINCULADAS (RF-003) - AT-03.7: coluna [NAO COMPARTILHAR] #}
   <div style="margin-top: var(--space-5);">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
@@ -100,7 +86,6 @@
         + Vincular pessoa
       </button>
     </div>
-
     <div id="links-loading" class="text-secondary mono" style="font-size: 0.85rem;">
       Carregando vinculos<span class="mono">...</span>
     </div>
@@ -124,19 +109,16 @@
       </table>
     </div>
   </div>
-
   {# DOCUMENTOS (RF-007) - AT-03.7: coluna [NAO COMPARTILHAR] #}
   <div style="margin-top: var(--space-5);" id="documents-section">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
       <div class="mono text-tertiary">--- DOCUMENTOS ---</div>
       <button type="button" id="doc-import-btn" class="btn btn--primary">[+] IMPORTAR</button>
     </div>
-
     <div id="doc-loading" class="text-secondary mono" style="font-size: var(--text-sm);">Carregando...</div>
     <div id="doc-empty" hidden class="app-content__placeholder-message" style="margin-top: 0;">
       Nenhum documento importado neste caso.
     </div>
-
     <table id="doc-table" hidden style="width: 100%; border-collapse: collapse;">
       <thead>
         <tr class="mono text-tertiary" style="font-size: var(--text-sm); border-bottom: 1px solid var(--border-subtle);">
@@ -153,19 +135,16 @@
       </tbody>
     </table>
   </div>
-
   {# BOLETINS DE OCORRENCIA (RF-009) - Sprint 03-4 #}
   <div style="margin-top: var(--space-5);" id="ir-section">
     <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-2);">
       <div class="mono text-tertiary">--- BOLETINS DE OCORRENCIA ---</div>
       <button type="button" id="ir-add-btn" class="btn btn--primary">[+] CADASTRAR BO</button>
     </div>
-
     <div id="ir-loading" class="text-secondary mono" style="font-size: var(--text-sm);">Carregando...</div>
     <div id="ir-empty" hidden class="app-content__placeholder-message" style="margin-top: 0;">
       Nenhum BO vinculado a este caso.
     </div>
-
     <table id="ir-table" hidden style="width: 100%; border-collapse: collapse;">
       <thead>
         <tr class="mono text-tertiary" style="font-size: var(--text-sm); border-bottom: 1px solid var(--border-subtle);">
@@ -174,6 +153,7 @@
           <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Unidade</th>
           <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Tipificacao</th>
           <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Resumo</th>
+          <th style="padding: var(--space-2) var(--space-3); font-weight: 500; text-align: left;">Documento</th>
           <th style="padding: var(--space-2) 0 var(--space-2) var(--space-3); font-weight: 500;"></th>
         </tr>
       </thead>
@@ -181,7 +161,6 @@
       </tbody>
     </table>
   </div>
-
   <div style="margin-top: var(--space-5); margin-bottom: var(--space-6);">
     <div class="mono text-tertiary" style="margin-bottom: var(--space-2);">--- AUDITORIA ---</div>
     <div style="display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4);">
@@ -195,14 +174,9 @@
       <span class="mono" data-field="updated_by">-</span>
     </div>
   </div>
-
 </div>
-
 {% endblock %}
-
-
 {% block extra_body %}
-
 <div class="modal-backdrop" id="modal-vincular-backdrop" data-open="false"
      role="dialog" aria-modal="true" aria-labelledby="modal-vincular-title">
   <div class="card" style="width: 560px; max-width: calc(100vw - var(--space-6));">
@@ -258,7 +232,6 @@
     </div>
   </div>
 </div>
-
 <div class="modal-backdrop" id="modal-doc-import-backdrop" data-open="false"
      role="dialog" aria-modal="true" aria-labelledby="modal-doc-import-title">
   <div class="card" style="width: 560px; max-width: calc(100vw - var(--space-6));">
@@ -303,7 +276,6 @@
     </div>
   </div>
 </div>
-
 <div class="modal-backdrop" id="modal-ir-backdrop" data-open="false"
      role="dialog" aria-modal="true" aria-labelledby="modal-ir-title">
   <div class="card" style="width: 580px; max-width: calc(100vw - var(--space-6));">
@@ -353,10 +325,79 @@
     </div>
   </div>
 </div>
-
+{# Modal OCR — visualizacao e validacao de texto extraido (RF-011, Sprint 04-5) #}
+<div class="modal-backdrop" id="modal-ocr-backdrop" data-open="false"
+     role="dialog" aria-modal="true" aria-labelledby="modal-ocr-title">
+  <div class="card" style="width: 780px; max-width: calc(100vw - var(--space-6)); max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="card__header">
+      <div class="card__title" id="modal-ocr-title">TEXTO OCR</div>
+      <div class="card__subtitle mono" id="modal-ocr-subtitle">---</div>
+    </div>
+    <div class="card__body" style="overflow-y: auto; flex: 1 1 auto;">
+      {# Barra de status #}
+      <div style="margin-bottom: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); align-items: center; padding-bottom: var(--space-3); border-bottom: 1px solid var(--border-subtle);">
+        <span class="mono text-tertiary" style="font-size: var(--text-sm);">ocr_status</span>
+        <span id="ocr-status-badge" class="badge mono">---</span>
+        <span class="mono text-tertiary" style="font-size: var(--text-sm);">validacao</span>
+        <span id="ocr-validation-badge" class="badge mono">---</span>
+        <span id="ocr-engine-label" class="mono text-tertiary" style="font-size: var(--text-sm);"></span>
+      </div>
+      {# Area editavel — validation_status=pending e ocr_status=done #}
+      <div id="ocr-edit-area" hidden>
+        <div class="mono text-tertiary" style="font-size: var(--text-sm); margin-bottom: var(--space-1);">
+          Texto extraido — revise e edite antes de validar:
+        </div>
+        <textarea id="ocr-text-input" class="input mono"
+                  rows="16"
+                  style="resize: vertical; font-size: 0.8rem; line-height: 1.6; width: 100%; box-sizing: border-box;"></textarea>
+        {# Sub-area de rejeicao — aparece ao clicar Rejeitar #}
+        <div id="ocr-reject-area" hidden
+             style="margin-top: var(--space-3); padding: var(--space-3);
+                    background: var(--surface-2); border-radius: var(--radius);
+                    border: 1px solid var(--border-subtle);">
+          <div class="field">
+            <label class="field__label field__label--required" for="ocr-reject-reason">
+              Motivo da rejeicao
+            </label>
+            <textarea id="ocr-reject-reason" class="input" rows="2"
+                      placeholder="Descreva o motivo da rejeicao do texto extraido..."></textarea>
+          </div>
+          <div style="display: flex; gap: var(--space-2);">
+            <button type="button" class="btn btn--text" id="ocr-reject-cancel-reason">Cancelar</button>
+            <button type="button" class="btn btn--primary" id="ocr-reject-confirm">
+              Confirmar rejeicao
+            </button>
+          </div>
+        </div>
+      </div>
+      {# Area somente leitura — validated ou rejected #}
+      <div id="ocr-readonly-area" hidden>
+        <div class="mono text-tertiary" style="font-size: var(--text-sm); margin-bottom: var(--space-1);"
+             id="ocr-readonly-label">Texto validado:</div>
+        <pre id="ocr-text-display" class="mono text-secondary"
+             style="white-space: pre-wrap; font-size: 0.8rem; line-height: 1.6;
+                    background: var(--surface-2); padding: var(--space-3);
+                    border-radius: var(--radius); max-height: 400px;
+                    overflow-y: auto; margin: 0;"></pre>
+        {# Info de rejeicao — aparece so quando rejected #}
+        <div id="ocr-rejected-info" hidden style="margin-top: var(--space-3);">
+          <div class="mono text-tertiary" style="font-size: var(--text-sm);">Motivo da rejeicao:</div>
+          <p id="ocr-rejection-reason-display" class="text-secondary"
+             style="margin: var(--space-1) 0 0 0; font-size: var(--text-sm);"></p>
+        </div>
+      </div>
+    </div>
+    <div class="card__footer" style="display: flex; justify-content: space-between; align-items: center;">
+      <button type="button" class="btn btn--text" id="modal-ocr-close">Fechar</button>
+      <div id="ocr-action-btns" style="display: none; gap: var(--space-2);">
+        <button type="button" class="btn btn--text" id="ocr-btn-rejeitar">Rejeitar</button>
+        <button type="button" class="btn btn--primary" id="ocr-btn-validar">Validar texto</button>
+      </div>
+    </div>
+  </div>
+</div>
 <script src="/static/js/toast.js" defer></script>
 <script src="/static/js/documents_in_case.js" defer></script>
 <script src="/static/js/incident_reports_in_case.js" defer></script>
 <script src="/static/js/case_detail.js" defer></script>
-
 {% endblock %}
