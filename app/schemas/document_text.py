@@ -1,84 +1,46 @@
 """
-app/schemas/document_text.py
-Sprint 04 — RF-011 (OCR e Documentos)
-
-Schemas Pydantic para leitura e validação de resultados OCR.
+CIRCE Intel Desk — Schemas Pydantic para DocumentText (RF-011).
+Sprint 04 — Sub-passo 04-3.
 """
-
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
-
-
-# ---------------------------------------------------------------------------
-# Leitura
-# ---------------------------------------------------------------------------
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class DocumentTextRead(BaseModel):
-    """Retorno completo de um registro DocumentText (GET)."""
+    """Resposta completa de um registro de OCR."""
+
+    model_config = ConfigDict(from_attributes=True)
 
     id: int
     document_id: int
-    engine: Optional[str] = None
-    raw_text: Optional[str] = None
-    validated_text: Optional[str] = None
+    engine: Optional[str]
+    raw_text: Optional[str]
+    validated_text: Optional[str]
     ocr_status: str
     validation_status: str
-    validated_by: Optional[int] = None
-    validated_at: Optional[datetime] = None
-    rejection_reason: Optional[str] = None
+    validated_by: Optional[int]
+    validated_at: Optional[datetime]
+    rejection_reason: Optional[str]
     created_at: datetime
     updated_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-# ---------------------------------------------------------------------------
-# Operações do operador
-# ---------------------------------------------------------------------------
 
 
 class DocumentTextValidate(BaseModel):
     """
-    PATCH /api/documents/{doc_id}/ocr/validate
+    Payload para validar ou rejeitar um texto OCR (CA-011.7).
 
-    action = "validate":
-      - validated_text obrigatório
-      - seta validation_status = "validated", validated_by, validated_at
-      - indexa o texto no FTS5 (feito no service — 04-4)
-
-    action = "reject":
-      - rejection_reason obrigatório
-      - seta validation_status = "rejected"
-      - texto NÃO é indexado no FTS5
+    action='validate': validated_text obrigatório.
+    action='reject':   rejection_reason obrigatório.
     """
 
-    action: Literal["validate", "reject"] = Field(
-        ...,
-        description="'validate' para aprovar o texto; 'reject' para rejeitar.",
-    )
-    validated_text: Optional[str] = Field(
-        None,
-        description=(
-            "Texto corrigido/aprovado pelo operador. "
-            "Obrigatório quando action='validate'."
-        ),
-    )
-    rejection_reason: Optional[str] = Field(
-        None,
-        max_length=500,
-        description=(
-            "Motivo da rejeição. "
-            "Obrigatório quando action='reject'."
-        ),
-    )
+    action: Literal["validate", "reject"]
+    validated_text: Optional[str] = None
+    rejection_reason: Optional[str] = None
 
     @model_validator(mode="after")
-    def check_fields_by_action(self) -> DocumentTextValidate:
+    def check_action_fields(self) -> "DocumentTextValidate":
         if self.action == "validate" and not self.validated_text:
             raise ValueError(
                 "validated_text é obrigatório quando action='validate'."
@@ -90,23 +52,9 @@ class DocumentTextValidate(BaseModel):
         return self
 
 
-# ---------------------------------------------------------------------------
-# Resumo compacto (para exibição no card de documento na UI)
-# ---------------------------------------------------------------------------
+class OCRTriggerResponse(BaseModel):
+    """Resposta 202 ao disparar OCR em background."""
 
-
-class DocumentTextSummary(BaseModel):
-    """
-    Versão compacta usada no card de documento —
-    não inclui o texto completo para não sobrecarregar a listagem.
-    """
-
-    id: int
+    message: str
     document_id: int
     ocr_status: str
-    validation_status: str
-    engine: Optional[str] = None
-    created_at: datetime
-    updated_at: datetime
-
-    model_config = {"from_attributes": True}

@@ -1,6 +1,5 @@
 """
 CIRCE Intel Desk — aplicação FastAPI.
-
 Sprint 0: fundação técnica (endpoint /health validando o stack).
 Sprint 0.5: shell visual (rota raiz / passa a renderizar o shell HTML;
             JSON de informação do sistema migra para /api/info).
@@ -13,6 +12,7 @@ Sprint 01 — Bloco 10 (10.4): registrado o router de Vínculos (RF-003).
 Sprint 01 — Bloco 11.4: registrado o router de Auditoria (RF-020).
 Sprint 03 — Sub-passo 03-3: registrado o router de BOs (RF-009).
 Sprint 03 — Sub-passo 03-7: registrado o router de Backup (RF-022).
+Sprint 04 — Sub-passo 04-3: registrado o router de OCR (RF-011).
 """
 import logging
 from contextlib import asynccontextmanager
@@ -32,6 +32,7 @@ from app.api.links import router as links_router
 from app.api.audit import router as audit_router
 from app.api.organizations import router as organizations_router
 from app.api.documents import router as documents_router
+from app.api.ocr import router as ocr_router
 from app.api.search import router as search_router
 from app.api.incident_reports import router as incident_reports_router
 from app.api.incident_reports import router_cases as incident_reports_cases_router
@@ -54,7 +55,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="CIRCE Intel Desk",
     description="Sistema desktop local de inteligência operacional.",
-    version="0.1.0-sprint03",
+    version="0.1.0-sprint04",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
@@ -73,6 +74,7 @@ app.include_router(links_router)
 app.include_router(audit_router)
 app.include_router(organizations_router)
 app.include_router(documents_router)
+app.include_router(ocr_router)
 app.include_router(search_router)
 app.include_router(incident_reports_router)
 app.include_router(incident_reports_cases_router)
